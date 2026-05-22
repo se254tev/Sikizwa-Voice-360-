@@ -1,0 +1,20 @@
+# Node
+node_modules/
+.env
+npm-debug.log
+.yarn-integrity
+
+# Python
+__pycache__/
+*.py[cod]
+venv/
+
+# Flutter
+**/build/
+**/.dart_tool/
+**/pubspec.lock
+
+# IDE
+.vscode/
+.idea/
+.DS_Store

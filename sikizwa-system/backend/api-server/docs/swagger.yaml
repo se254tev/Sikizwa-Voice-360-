@@ -1,0 +1,11 @@
+openapi: 3.0.0
+info:
+  title: Sikizwa Backend API
+  version: '0.1.0'
+paths:
+  /api/auth/anonymous:
+    post:
+      summary: Anonymous login
+      responses:
+        '200':
+          description: OK

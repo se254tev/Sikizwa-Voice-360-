@@ -1,0 +1,23 @@
+services:
+  - type: web
+    name: api-server
+    env: node
+    plan: starter
+    region: oregon
+    buildCommand: "npm install"
+    startCommand: "node src/index.js"
+    envVars:
+      - key: MONGO_ATLAS_URI
+      - key: JWT_SECRET
+      - key: JWT_REFRESH_SECRET
+      - key: REDIS_URL
+      - key: CLOUDINARY_CLOUD_NAME
+      - key: CLOUDINARY_API_KEY
+      - key: CLOUDINARY_API_SECRET
+    mounts: []
+    healthCheckPath: "/health"
+
+cron:
+  - name: emergency-escalation-worker
+    schedule: "*/5 * * * *"
+    command: "node src/jobs/emergencyEscalationWorker.js"
