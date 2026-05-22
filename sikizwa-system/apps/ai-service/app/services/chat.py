@@ -10,17 +10,20 @@ DEFAULT_PROMPT = (
 )
 
 async def respond_chat(message, context):
-    prompt = f"{DEFAULT_PROMPT}\nUser: {message}\nSikizwa AI:"
-    response = client.responses.create(
+    response = client.chat.completions.create(
         model=os.getenv('OPENAI_CHAT_MODEL', 'gpt-4o-mini'),
-        input=[
+        messages=[
+            {
+                'role': 'system',
+                'content': DEFAULT_PROMPT
+            },
             {
                 'role': 'user',
-                'content': [
-                    {'type': 'text', 'text': prompt}
-                ]
+                'content': message
             }
-        ]
+        ],
+        temperature=0.7,
+        max_tokens=500
     )
-    reply = response.output_text or 'I am here with you. Can you tell me more?'
+    reply = response.choices[0].message.content or 'I am here with you. Can you tell me more?'
     return {'reply': reply}
