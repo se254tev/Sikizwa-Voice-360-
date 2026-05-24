@@ -1,7 +1,5 @@
-import 'dart:convert';
-import 'dart:ui';
-
 import 'package:device_info_plus/device_info_plus.dart';
+import 'package:flutter/widgets.dart';
 import 'package:uuid/uuid.dart';
 
 import 'secure_storage_service.dart';
@@ -87,7 +85,7 @@ class DeviceDetectionService {
       systemFeatures: androidInfo.systemFeatures,
     );
 
-    await storage.saveDeviceType(typeLabel);
+    await storage.saveDeviceType(type.name);
 
     return DeviceDetectionResult(
       type: type,

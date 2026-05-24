@@ -1,4 +1,4 @@
-import '../../../core/errors.dart';
+import '../../../src/core/errors.dart';
 import '../../../src/services/api_service.dart';
 import '../data/models/ai_chat_request.dart';
 import '../data/models/ai_chat_response.dart';

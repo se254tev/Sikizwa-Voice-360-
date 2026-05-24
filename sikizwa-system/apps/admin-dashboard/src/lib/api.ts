@@ -5,6 +5,21 @@ const api = axios.create({
   withCredentials: true
 });
 
+const ACCESS_TOKEN_KEY = 'admin_access_token';
+const envToken = typeof import.meta.env.VITE_ADMIN_TOKEN === 'string' ? import.meta.env.VITE_ADMIN_TOKEN.trim() : '';
+
+api.interceptors.request.use((config) => {
+  const storedToken = window.localStorage.getItem(ACCESS_TOKEN_KEY)?.trim() || '';
+  const token = envToken || storedToken;
+
+  if (token) {
+    config.headers = config.headers ?? {};
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+
+  return config;
+});
+
 export async function fetchAnalyticsOverview() {
   const res = await api.get('/analytics/overview');
   return res.data;

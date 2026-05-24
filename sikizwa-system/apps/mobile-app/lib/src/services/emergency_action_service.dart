@@ -1,7 +1,6 @@
 import 'dart:convert';
 import 'dart:developer';
 
-import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -52,8 +51,10 @@ class EmergencyActionService {
     }
 
     final position = await Geolocator.getCurrentPosition(
-      desiredAccuracy: LocationAccuracy.best,
-      timeLimit: const Duration(seconds: 10),
+      locationSettings: const LocationSettings(
+        accuracy: LocationAccuracy.best,
+        timeLimit: Duration(seconds: 10),
+      ),
     );
 
     await api.post('/api/distress-signal', data: {
@@ -66,16 +67,26 @@ class EmergencyActionService {
 
   Future<void> callPrimaryContact() async {
     final profile = await _loadProfile();
-    final contact = profile?.contacts.firstWhere(
-      (candidate) => candidate.type == 'personal',
-      orElse: () => profile!.contacts.first,
-    );
 
-    if (contact == null) {
+    if (profile == null || profile.contacts.isEmpty) {
       throw StateError('No emergency contact is available.');
     }
 
-    final uri = Uri(scheme: 'tel', path: contact.phone);
+    final contact = profile.contacts.firstWhere(
+      (candidate) => candidate.type == 'personal',
+      orElse: () => profile.contacts.first,
+    );
+
+    await callEmergencyNumber(contact.phone);
+  }
+
+  Future<void> callEmergencyNumber(String number) async {
+    final normalized = number.trim();
+    if (normalized.isEmpty) {
+      throw StateError('Please provide a valid emergency number.');
+    }
+
+    final uri = Uri(scheme: 'tel', path: normalized);
     final launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
     if (!launched) {
       throw StateError('Unable to launch the phone dialer.');

@@ -23,46 +23,11 @@ type ActivityEntry = {
   badge: string;
 };
 
-const demoTrends: TrendPoint[] = [
-  { label: 'Mon', count: 6 },
-  { label: 'Tue', count: 8 },
-  { label: 'Wed', count: 5 },
-  { label: 'Thu', count: 9 },
-  { label: 'Fri', count: 7 },
-  { label: 'Sat', count: 10 },
-  { label: 'Sun', count: 6 }
-];
-
-const demoLogs: ActivityEntry[] = [
-  {
-    id: '1',
-    title: 'Incident created',
-    detail: 'New report submitted from the safety intake form.',
-    timestamp: 'Just now',
-    badge: 'Live'
-  },
-  {
-    id: '2',
-    title: 'Emergency detected',
-    detail: 'High-priority incident flagged for immediate review.',
-    timestamp: '5 minutes ago',
-    badge: 'Critical'
-  },
-  {
-    id: '3',
-    title: 'Counsellor assigned',
-    detail: 'A counsellor was matched to a new support request.',
-    timestamp: '12 minutes ago',
-    badge: 'Assigned'
-  },
-  {
-    id: '4',
-    title: 'System alert',
-    detail: 'Realtime analytics refreshed successfully.',
-    timestamp: '18 minutes ago',
-    badge: 'Synced'
-  }
-];
+type OverviewData = {
+  reportCount?: number;
+  emergencyCount?: number;
+  recentAudits?: unknown[];
+};
 
 function formatTimestamp(value: string | Date | undefined) {
   if (!value) {
@@ -125,7 +90,7 @@ function normalizeActivityEntries(rawData: unknown): ActivityEntry[] {
         id: entry?._id || `log-${index}`,
         title: label,
         detail: entry?.description || entry?.notes || entry?.message || 'No details available.',
-        timestamp: formatTimestamp(entry?.createdAt || entry?.timestamp || new Date()),
+        timestamp: formatTimestamp(entry?.createdAt || entry?.timestamp),
         badge:
           action.includes('emergency')
             ? 'Critical'
@@ -137,6 +102,20 @@ function normalizeActivityEntries(rawData: unknown): ActivityEntry[] {
       };
     })
     .filter((entry) => entry.title && entry.detail);
+}
+
+function normalizeOverview(rawData: unknown): OverviewData | null {
+  if (!rawData || typeof rawData !== 'object') {
+    return null;
+  }
+
+  const value = rawData as Record<string, unknown>;
+
+  return {
+    reportCount: typeof value.reportCount === 'number' ? value.reportCount : undefined,
+    emergencyCount: typeof value.emergencyCount === 'number' ? value.emergencyCount : undefined,
+    recentAudits: Array.isArray(value.recentAudits) ? value.recentAudits : []
+  };
 }
 
 function SkeletonCard() {
@@ -160,11 +139,10 @@ function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [overview, setOverview] = useState<any>(null);
+  const [overview, setOverview] = useState<OverviewData | null>(null);
   const [trends, setTrends] = useState<TrendPoint[]>([]);
   const [reports, setReports] = useState<any[]>([]);
   const [emergencies, setEmergencies] = useState<any[]>([]);
-  const [chartFallback, setChartFallback] = useState(false);
 
   const loadDashboardData = async (isBackground = false) => {
     if (!isBackground) {
@@ -180,28 +158,19 @@ function DashboardPage() {
       fetchEmergencies()
     ]);
 
-    const liveOverview = overviewResult.status === 'fulfilled' ? overviewResult.value : null;
-    const trendsLoaded = trendsResult.status === 'fulfilled';
-    const liveTrends = trendsLoaded ? normalizeTrendData(trendsResult.value?.trends ?? trendsResult.value) : [];
-    const liveReports = reportsResult.status === 'fulfilled' ? reportsResult.value : [];
-    const liveEmergencies = emergenciesResult.status === 'fulfilled' ? emergenciesResult.value : [];
+    const liveOverview = overviewResult.status === 'fulfilled' ? normalizeOverview(overviewResult.value) : null;
+    const liveTrends = trendsResult.status === 'fulfilled' ? normalizeTrendData(trendsResult.value?.trends ?? trendsResult.value) : [];
+    const liveReports = reportsResult.status === 'fulfilled' && Array.isArray(reportsResult.value) ? reportsResult.value : [];
+    const liveEmergencies = emergenciesResult.status === 'fulfilled' && Array.isArray(emergenciesResult.value) ? emergenciesResult.value : [];
 
-    const hasLiveData =
-      Boolean(liveOverview) ||
-      liveTrends.length > 0 ||
-      liveReports.length > 0 ||
-      liveEmergencies.length > 0;
+    const hasFailures = [overviewResult, trendsResult, reportsResult, emergenciesResult].some((result) => result.status === 'rejected');
+    const hasLiveData = Boolean(liveOverview) || liveTrends.length > 0 || liveReports.length > 0 || liveEmergencies.length > 0;
 
     setOverview(liveOverview);
-    setReports(Array.isArray(liveReports) ? liveReports : []);
-    setEmergencies(Array.isArray(liveEmergencies) ? liveEmergencies : []);
-    setTrends(trendsLoaded ? liveTrends : demoTrends);
-    setChartFallback(!trendsLoaded);
-    setError(
-      hasLiveData
-        ? null
-        : 'Showing demo data while the live dashboard is temporarily unavailable.'
-    );
+    setReports(liveReports);
+    setEmergencies(liveEmergencies);
+    setTrends(liveTrends);
+    setError(hasLiveData ? null : hasFailures ? 'Live dashboard data is temporarily unavailable.' : null);
 
     if (!isBackground) {
       setLoading(false);
@@ -219,20 +188,10 @@ function DashboardPage() {
     return () => window.clearInterval(interval);
   }, []);
 
-  const recentLogs = useMemo<ActivityEntry[]>(() => {
-    const normalized = normalizeActivityEntries(overview?.recentAudits);
-
-    if (normalized.length > 0) {
-      return normalized.slice(0, 4);
-    }
-
-    return overview ? [] : demoLogs;
-  }, [overview]);
-
-  const reportCount = overview?.reportCount ?? reports.length ?? 0;
-  const emergencyCount = overview?.emergencyCount ?? emergencies.length ?? 0;
-  const recentLogsCount = overview?.recentAudits?.length ?? recentLogs.length ?? 0;
-  const chartData = chartFallback ? demoTrends : trends;
+  const recentLogs = useMemo<ActivityEntry[]>(() => normalizeActivityEntries(overview?.recentAudits), [overview]);
+  const reportCount = overview?.reportCount ?? reports.length;
+  const emergencyCount = overview?.emergencyCount ?? emergencies.length;
+  const recentLogsCount = overview?.recentAudits?.length ?? recentLogs.length;
   const hasRecentLogs = recentLogs.length > 0;
 
   return (
@@ -295,10 +254,10 @@ function DashboardPage() {
 
         {loading ? (
           <SkeletonChart />
-        ) : chartData.length > 0 ? (
+        ) : trends.length > 0 ? (
           <div className="mt-6 h-80">
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={chartData}>
+              <LineChart data={trends}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" />
                 <XAxis dataKey="label" tickLine={false} axisLine={false} />
                 <YAxis allowDecimals={false} tickLine={false} axisLine={false} />

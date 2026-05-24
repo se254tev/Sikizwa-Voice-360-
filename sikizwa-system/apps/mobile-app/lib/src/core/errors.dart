@@ -28,10 +28,14 @@ class NetworkException extends AppException {
 }
 
 class ApiException extends AppException {
-  ApiException({required ApiError error})
-      : statusCode = error.statusCode,
-        details = error.details,
-        super(error.message);
+  ApiException({
+    ApiError? error,
+    int? statusCode,
+    String? message,
+    String? details,
+  })  : statusCode = error?.statusCode ?? statusCode ?? 500,
+        details = details ?? error?.details,
+        super(message ?? error?.message ?? 'Request failed. Please try again.');
 
   final int statusCode;
   final String? details;

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/errors.dart';
 import '../../providers/app_providers.dart';
 import '../../services/emergency_action_service.dart';
 
@@ -33,7 +34,7 @@ class _EmergencyScreenState extends ConsumerState<EmergencyScreen> {
       }
       _showSnackBar('Distress signal sent with your location.');
     } catch (error) {
-      _showSnackBar(error.toString());
+      _showSnackBar(formatError(error));
     } finally {
       if (mounted) {
         setState(() => _isSending = false);
@@ -55,7 +56,29 @@ class _EmergencyScreenState extends ConsumerState<EmergencyScreen> {
       }
       _showSnackBar('Opening your primary emergency contact.');
     } catch (error) {
-      _showSnackBar(error.toString());
+      _showSnackBar(formatError(error));
+    } finally {
+      if (mounted) {
+        setState(() => _isSending = false);
+      }
+    }
+  }
+
+  Future<void> _callEmergencyNumber(String number, String label) async {
+    if (_isSending) {
+      return;
+    }
+
+    setState(() => _isSending = true);
+
+    try {
+      await _service.callEmergencyNumber(number);
+      if (!mounted) {
+        return;
+      }
+      _showSnackBar('Opening $label on your phone.');
+    } catch (error) {
+      _showSnackBar(formatError(error));
     } finally {
       if (mounted) {
         setState(() => _isSending = false);
@@ -80,9 +103,14 @@ class _EmergencyScreenState extends ConsumerState<EmergencyScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const Text('Emergency support', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+            const Text(
+              'Emergency support',
+              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+            ),
             const SizedBox(height: 16),
-            const Text('Trigger a safe response team or send a distress signal with your current location.'),
+            const Text(
+              'Send a distress signal, call your saved contact, or reach the national emergency numbers in Kenya.',
+            ),
             const SizedBox(height: 24),
             ElevatedButton(
               onPressed: _isSending ? null : _sendDistressSignal,
@@ -98,6 +126,16 @@ class _EmergencyScreenState extends ConsumerState<EmergencyScreen> {
             ElevatedButton(
               onPressed: _isSending ? null : _callPrimaryContact,
               child: const Text('Call primary contact'),
+            ),
+            const SizedBox(height: 12),
+            OutlinedButton(
+              onPressed: _isSending ? null : () => _callEmergencyNumber('999', '999'),
+              child: const Text('Call 999'),
+            ),
+            const SizedBox(height: 12),
+            OutlinedButton(
+              onPressed: _isSending ? null : () => _callEmergencyNumber('112', '112'),
+              child: const Text('Call 112'),
             ),
           ],
         ),
