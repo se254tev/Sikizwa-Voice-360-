@@ -1,7 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+
+import '../../../src/core/validation/form_validators.dart';
+import '../../../src/shared/widgets/validated_text_field.dart';
+import '../../../src/shared/widgets/validation_summary.dart';
 import 'providers/auth_provider.dart';
+import 'registration_helpers.dart';
 
 class RegisterScreen extends ConsumerStatefulWidget {
   const RegisterScreen({super.key});
@@ -11,6 +16,7 @@ class RegisterScreen extends ConsumerStatefulWidget {
 }
 
 class _RegisterScreenState extends ConsumerState<RegisterScreen> {
+  final _formKey = GlobalKey<FormState>();
   final _fullNameController = TextEditingController();
   final _phoneController = TextEditingController();
   final _passwordController = TextEditingController();
@@ -29,6 +35,22 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   final _guardianNameController = TextEditingController();
   final _guardianPhoneController = TextEditingController();
   final _guardianRelationshipController = TextEditingController();
+
+  final _fullNameFocusNode = FocusNode();
+  final _phoneFocusNode = FocusNode();
+  final _passwordFocusNode = FocusNode();
+  final _emailFocusNode = FocusNode();
+  final _primaryNameFocusNode = FocusNode();
+  final _primaryPhoneFocusNode = FocusNode();
+  final _primaryRelationshipFocusNode = FocusNode();
+  final _secondaryNameFocusNode = FocusNode();
+  final _secondaryPhoneFocusNode = FocusNode();
+  final _secondaryRelationshipFocusNode = FocusNode();
+  final _guardianNameFocusNode = FocusNode();
+  final _guardianPhoneFocusNode = FocusNode();
+  final _guardianRelationshipFocusNode = FocusNode();
+
+  List<String> _summaryErrors = const [];
 
   @override
   void dispose() {
@@ -50,6 +72,19 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     _guardianNameController.dispose();
     _guardianPhoneController.dispose();
     _guardianRelationshipController.dispose();
+    _fullNameFocusNode.dispose();
+    _phoneFocusNode.dispose();
+    _passwordFocusNode.dispose();
+    _emailFocusNode.dispose();
+    _primaryNameFocusNode.dispose();
+    _primaryPhoneFocusNode.dispose();
+    _primaryRelationshipFocusNode.dispose();
+    _secondaryNameFocusNode.dispose();
+    _secondaryPhoneFocusNode.dispose();
+    _secondaryRelationshipFocusNode.dispose();
+    _guardianNameFocusNode.dispose();
+    _guardianPhoneFocusNode.dispose();
+    _guardianRelationshipFocusNode.dispose();
     super.dispose();
   }
 
@@ -66,66 +101,240 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     };
   }
 
-  String? _validateContact(Map<String, String> contact) {
-    if (contact['name']!.isEmpty || contact['phone']!.isEmpty || contact['relationship']!.isEmpty) {
-      return 'Complete all emergency contact fields.';
+  List<Map<String, String>> get _emergencyContacts =>
+      filterCompletedEmergencyContacts([
+        _buildContact(
+          _primaryNameController,
+          _primaryPhoneController,
+          _primaryRelationshipController,
+        ),
+        _buildContact(
+          _secondaryNameController,
+          _secondaryPhoneController,
+          _secondaryRelationshipController,
+        ),
+        _buildContact(
+          _guardianNameController,
+          _guardianPhoneController,
+          _guardianRelationshipController,
+        ),
+      ]);
+
+  List<Map<String, String>> get _rawEmergencyContacts => [
+    _buildContact(
+      _primaryNameController,
+      _primaryPhoneController,
+      _primaryRelationshipController,
+    ),
+    _buildContact(
+      _secondaryNameController,
+      _secondaryPhoneController,
+      _secondaryRelationshipController,
+    ),
+    _buildContact(
+      _guardianNameController,
+      _guardianPhoneController,
+      _guardianRelationshipController,
+    ),
+  ];
+
+  void _syncSummaryErrors() {
+    final errors = <String>[];
+
+    final fullNameError = FormValidators.fullName(_fullNameController.text);
+    if (fullNameError != null) {
+      errors.add(fullNameError);
     }
 
-    final phone = contact['phone']!;
-    if (!RegExp(r'^\+?[0-9]{7,15}$').hasMatch(phone)) {
-      return 'Emergency contact phone numbers must be valid international numbers.';
+    final phoneError = FormValidators.phone(
+      _phoneController.text,
+      required: true,
+    );
+    if (phoneError != null) {
+      errors.add(phoneError);
+    }
+
+    final passwordError = FormValidators.password(
+      _passwordController.text,
+      required: true,
+    );
+    if (passwordError != null) {
+      errors.add(passwordError);
+    }
+
+    final emailError = FormValidators.email(_emailController.text);
+    if (emailError != null) {
+      errors.add(emailError);
+    }
+
+    for (final contact in _rawEmergencyContacts) {
+      final hasAnyValue =
+          (contact['name'] ?? '').isNotEmpty ||
+          (contact['phone'] ?? '').isNotEmpty ||
+          (contact['relationship'] ?? '').isNotEmpty;
+
+      if (!hasAnyValue) {
+        continue;
+      }
+
+      if ((contact['name'] ?? '').isEmpty) {
+        errors.add(
+          'Please enter the contact name so we can save this emergency contact.',
+        );
+      }
+
+      if ((contact['phone'] ?? '').isEmpty) {
+        errors.add(
+          'Please enter the contact phone number so we can save this emergency contact.',
+        );
+      }
+
+      if ((contact['relationship'] ?? '').isEmpty) {
+        errors.add('Please tell us how this contact is related to you.');
+      }
+
+      final invalidPhone = FormValidators.phone(contact['phone']);
+      if (invalidPhone != null && (contact['phone'] ?? '').isNotEmpty) {
+        errors.add(invalidPhone);
+      }
+    }
+
+    setState(() => _summaryErrors = errors);
+  }
+
+  FocusNode? _firstInvalidFocusNode() {
+    final fullNameError = FormValidators.fullName(_fullNameController.text);
+    if (fullNameError != null) {
+      return _fullNameFocusNode;
+    }
+
+    final phoneError = FormValidators.phone(
+      _phoneController.text,
+      required: true,
+    );
+    if (phoneError != null) {
+      return _phoneFocusNode;
+    }
+
+    final passwordError = FormValidators.password(
+      _passwordController.text,
+      required: true,
+    );
+    if (passwordError != null) {
+      return _passwordFocusNode;
+    }
+
+    final emailError = FormValidators.email(_emailController.text);
+    if (emailError != null) {
+      return _emailFocusNode;
+    }
+
+    final primary = _rawEmergencyContacts[0];
+    if (_contactNeedsValidation(primary)) {
+      if ((primary['name'] ?? '').isEmpty) {
+        return _primaryNameFocusNode;
+      }
+      if (FormValidators.phone(primary['phone']) != null) {
+        return _primaryPhoneFocusNode;
+      }
+      if ((primary['relationship'] ?? '').isEmpty) {
+        return _primaryRelationshipFocusNode;
+      }
+    }
+
+    final secondary = _rawEmergencyContacts[1];
+    if (_contactNeedsValidation(secondary)) {
+      if ((secondary['name'] ?? '').isEmpty) {
+        return _secondaryNameFocusNode;
+      }
+      if (FormValidators.phone(secondary['phone']) != null) {
+        return _secondaryPhoneFocusNode;
+      }
+      if ((secondary['relationship'] ?? '').isEmpty) {
+        return _secondaryRelationshipFocusNode;
+      }
+    }
+
+    final guardian = _rawEmergencyContacts[2];
+    if (_contactNeedsValidation(guardian)) {
+      if ((guardian['name'] ?? '').isEmpty) {
+        return _guardianNameFocusNode;
+      }
+      if (FormValidators.phone(guardian['phone']) != null) {
+        return _guardianPhoneFocusNode;
+      }
+      if ((guardian['relationship'] ?? '').isEmpty) {
+        return _guardianRelationshipFocusNode;
+      }
     }
 
     return null;
   }
 
+  bool _contactNeedsValidation(Map<String, String> contact) {
+    return (contact['name'] ?? '').isNotEmpty ||
+        (contact['phone'] ?? '').isNotEmpty ||
+        (contact['relationship'] ?? '').isNotEmpty;
+  }
+
   Future<void> _submit() async {
+    _syncSummaryErrors();
+
+    final isValid = _formKey.currentState?.validate() ?? false;
+
+    if (!isValid) {
+      _firstInvalidFocusNode()?.requestFocus();
+      return;
+    }
+
     final fullName = _fullNameController.text.trim();
     final phone = _phoneController.text.trim();
     final password = _passwordController.text;
 
-    if (fullName.isEmpty || phone.isEmpty || password.isEmpty) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Please enter your full name, phone, and password.')),
-        );
-      }
-      return;
-    }
+    final rawContacts = _rawEmergencyContacts;
 
-    final emergencyContacts = [
-      _buildContact(_primaryNameController, _primaryPhoneController, _primaryRelationshipController),
-      _buildContact(_secondaryNameController, _secondaryPhoneController, _secondaryRelationshipController),
-      _buildContact(_guardianNameController, _guardianPhoneController, _guardianRelationshipController),
-    ];
-
-    for (final contact in emergencyContacts) {
-      final validation = _validateContact(contact);
+    for (final contact in rawContacts) {
+      final validation = validateEmergencyContact(contact);
       if (validation != null) {
+        setState(() => _summaryErrors = [validation]);
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(validation)));
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text(validation)));
         }
         return;
       }
     }
 
     try {
-      await ref.read(authProvider.notifier).register(
-        fullName: fullName,
-        phone: phone,
-        password: password,
-        role: _roleController.text.trim().isEmpty ? 'other' : _roleController.text.trim(),
-        emergencyContacts: emergencyContacts,
-        email: _emailController.text.trim().isEmpty ? null : _emailController.text.trim(),
-        bloodGroup: _bloodGroupController.text.trim().isEmpty ? null : _bloodGroupController.text.trim(),
-        allergies: _allergiesController.text.trim().isEmpty ? null : _allergiesController.text.trim(),
-        medicalConditions: _medicalConditionsController.text.trim().isEmpty ? null : _medicalConditionsController.text.trim(),
-        location: _locationController.text.trim().isEmpty ? null : _locationController.text.trim(),
-      );
-      if (mounted) context.go('/home');
+      await ref
+          .read(authProvider.notifier)
+          .register(
+            fullName: fullName,
+            phone: phone,
+            password: password,
+            role: _roleController.text.trim().isEmpty
+                ? 'other'
+                : _roleController.text.trim(),
+            emergencyContacts: _emergencyContacts,
+            email: normalizeOptionalField(_emailController.text),
+            bloodGroup: normalizeOptionalField(_bloodGroupController.text),
+            allergies: normalizeOptionalField(_allergiesController.text),
+            medicalConditions: normalizeOptionalField(
+              _medicalConditionsController.text,
+            ),
+            location: normalizeOptionalField(_locationController.text),
+          );
+      if (mounted) {
+        context.go('/home');
+      }
     } catch (e) {
       final err = ref.read(authProvider).error ?? e.toString();
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(err)));
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(err)));
+      }
     }
   }
 
@@ -134,88 +343,261 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     final auth = ref.watch(authProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Create account')),
-      body: Padding(
-        padding: const EdgeInsets.all(16),
+      body: SafeArea(
         child: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              const Text('Get started', style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 8),
-              const Text('Create your emergency profile so help can reach you quickly.', style: TextStyle(fontSize: 16)),
-              const SizedBox(height: 24),
-              TextField(
-                controller: _fullNameController,
-                decoration: const InputDecoration(labelText: 'Full name'),
+          padding: const EdgeInsets.fromLTRB(16, 20, 16, 32),
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 760),
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(20),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(28),
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFF5B2DA4), Color(0xFF7C3AED)],
+                        ),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: const [
+                          Text(
+                            'Create your account',
+                            style: TextStyle(
+                              fontSize: 28,
+                              fontWeight: FontWeight.w800,
+                              color: Colors.white,
+                              height: 1.1,
+                            ),
+                          ),
+                          SizedBox(height: 10),
+                          Text(
+                            'Your details can be shared at your pace. Required information is clearly separated from optional support preferences.',
+                            style: TextStyle(
+                              fontSize: 15,
+                              color: Colors.white70,
+                              height: 1.5,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    ValidationSummaryBanner(errors: _summaryErrors),
+                    _sectionCard(
+                      title: 'Required information',
+                      subtitle:
+                          'These fields are needed to create your account and start support.',
+                      child: Column(
+                        children: [
+                          _buildField(
+                            controller: _fullNameController,
+                            label: 'Full name *',
+                            focusNode: _fullNameFocusNode,
+                            textInputAction: TextInputAction.next,
+                            validator: FormValidators.fullName,
+                          ),
+                          const SizedBox(height: 12),
+                          _buildField(
+                            controller: _phoneController,
+                            label: 'Phone number *',
+                            keyboardType: TextInputType.phone,
+                            focusNode: _phoneFocusNode,
+                            textInputAction: TextInputAction.next,
+                            validator: (value) =>
+                                FormValidators.phone(value, required: true),
+                          ),
+                          const SizedBox(height: 12),
+                          _buildField(
+                            controller: _passwordController,
+                            label: 'Password *',
+                            obscureText: true,
+                            focusNode: _passwordFocusNode,
+                            textInputAction: TextInputAction.next,
+                            validator: (value) =>
+                                FormValidators.password(value, required: true),
+                          ),
+                          const SizedBox(height: 12),
+                          _buildField(
+                            controller: _roleController,
+                            label: 'Role',
+                            helperText:
+                                'Optional. Share how you want to use the app.',
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    _sectionCard(
+                      title: 'Optional details',
+                      subtitle:
+                          'Leave these blank if you prefer not to share them right now.',
+                      child: Column(
+                        children: [
+                          _buildField(
+                            controller: _emailController,
+                            label: 'Email',
+                            keyboardType: TextInputType.emailAddress,
+                            focusNode: _emailFocusNode,
+                            textInputAction: TextInputAction.next,
+                            validator: FormValidators.email,
+                            helperText:
+                                'Use an address such as name@example.com.',
+                          ),
+                          const SizedBox(height: 12),
+                          _buildField(
+                            controller: _bloodGroupController,
+                            label: 'Blood group',
+                          ),
+                          const SizedBox(height: 12),
+                          _buildField(
+                            controller: _allergiesController,
+                            label: 'Allergies',
+                          ),
+                          const SizedBox(height: 12),
+                          _buildField(
+                            controller: _medicalConditionsController,
+                            label: 'Medical conditions',
+                          ),
+                          const SizedBox(height: 12),
+                          _buildField(
+                            controller: _locationController,
+                            label: 'Location',
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    _sectionCard(
+                      title: 'Emergency contacts',
+                      subtitle:
+                          'Optional. Complete any contact you want saved, and leave the rest blank.',
+                      child: Column(
+                        children: [
+                          _buildContactCard(
+                            'Primary contact',
+                            _primaryNameController,
+                            _primaryPhoneController,
+                            _primaryRelationshipController,
+                            _primaryNameFocusNode,
+                            _primaryPhoneFocusNode,
+                            _primaryRelationshipFocusNode,
+                          ),
+                          const SizedBox(height: 12),
+                          _buildContactCard(
+                            'Secondary contact',
+                            _secondaryNameController,
+                            _secondaryPhoneController,
+                            _secondaryRelationshipController,
+                            _secondaryNameFocusNode,
+                            _secondaryPhoneFocusNode,
+                            _secondaryRelationshipFocusNode,
+                          ),
+                          const SizedBox(height: 12),
+                          _buildContactCard(
+                            'Guardian or trusted contact',
+                            _guardianNameController,
+                            _guardianPhoneController,
+                            _guardianRelationshipController,
+                            _guardianNameFocusNode,
+                            _guardianPhoneFocusNode,
+                            _guardianRelationshipFocusNode,
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    SizedBox(
+                      height: 56,
+                      child: ElevatedButton(
+                        onPressed: auth.isLoading ? null : _submit,
+                        child: auth.isLoading
+                            ? const SizedBox(
+                                width: 24,
+                                height: 24,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Colors.white,
+                                ),
+                              )
+                            : const Text(
+                                'Create account',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    TextButton(
+                      onPressed: () => context.go('/login'),
+                      child: const Text('Back to sign in'),
+                    ),
+                  ],
+                ),
               ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: _phoneController,
-                keyboardType: TextInputType.phone,
-                decoration: const InputDecoration(labelText: 'Phone number'),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: _passwordController,
-                obscureText: true,
-                decoration: const InputDecoration(labelText: 'Password'),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: _emailController,
-                keyboardType: TextInputType.emailAddress,
-                decoration: const InputDecoration(labelText: 'Email (optional)'),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: _roleController,
-                decoration: const InputDecoration(labelText: 'Role'),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: _bloodGroupController,
-                decoration: const InputDecoration(labelText: 'Blood group (optional)'),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: _allergiesController,
-                decoration: const InputDecoration(labelText: 'Allergies (optional)'),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: _medicalConditionsController,
-                decoration: const InputDecoration(labelText: 'Medical conditions (optional)'),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: _locationController,
-                decoration: const InputDecoration(labelText: 'Location (optional)'),
-              ),
-              const SizedBox(height: 24),
-              const Text('Emergency contacts', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 12),
-              _buildContactCard('Primary contact', _primaryNameController, _primaryPhoneController, _primaryRelationshipController),
-              const SizedBox(height: 12),
-              _buildContactCard('Secondary contact', _secondaryNameController, _secondaryPhoneController, _secondaryRelationshipController),
-              const SizedBox(height: 12),
-              _buildContactCard('Guardian or trusted contact', _guardianNameController, _guardianPhoneController, _guardianRelationshipController),
-              const SizedBox(height: 24),
-              ElevatedButton(
-                onPressed: auth.isLoading ? null : _submit,
-                child: auth.isLoading
-                    ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
-                    : const Text('Create account'),
-              ),
-              const SizedBox(height: 12),
-              TextButton(
-                onPressed: () => context.go('/login'),
-                child: const Text('Back to sign in'),
-              ),
-            ],
+            ),
           ),
         ),
       ),
+    );
+  }
+
+  Widget _sectionCard({
+    required String title,
+    required String subtitle,
+    required Widget child,
+  }) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(18),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              title,
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              subtitle,
+              style: TextStyle(
+                fontSize: 14,
+                color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
+              ),
+            ),
+            const SizedBox(height: 16),
+            child,
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildField({
+    required TextEditingController controller,
+    required String label,
+    bool obscureText = false,
+    TextInputType? keyboardType,
+    FocusNode? focusNode,
+    TextInputAction? textInputAction,
+    String? Function(String?)? validator,
+    String? helperText,
+  }) {
+    return AppValidatedTextField(
+      controller: controller,
+      label: label,
+      helperText: helperText,
+      focusNode: focusNode,
+      obscureText: obscureText,
+      keyboardType: keyboardType,
+      textInputAction: textInputAction,
+      validator: validator,
     );
   }
 
@@ -224,22 +606,62 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     TextEditingController nameController,
     TextEditingController phoneController,
     TextEditingController relationshipController,
+    FocusNode nameFocusNode,
+    FocusNode phoneFocusNode,
+    FocusNode relationshipFocusNode,
   ) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
-            const SizedBox(height: 12),
-            TextField(controller: nameController, decoration: const InputDecoration(labelText: 'Name')),
-            const SizedBox(height: 8),
-            TextField(controller: phoneController, keyboardType: TextInputType.phone, decoration: const InputDecoration(labelText: 'Phone')),
-            const SizedBox(height: 8),
-            TextField(controller: relationshipController, decoration: const InputDecoration(labelText: 'Relationship')),
-          ],
-        ),
+    final hasAnyValue =
+        nameController.text.trim().isNotEmpty ||
+        phoneController.text.trim().isNotEmpty ||
+        relationshipController.text.trim().isNotEmpty;
+
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(20),
+        color: Theme.of(context).colorScheme.surface,
+      ),
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+          ),
+          const SizedBox(height: 12),
+          AppValidatedTextField(
+            controller: nameController,
+            label: 'Name',
+            focusNode: nameFocusNode,
+            textInputAction: TextInputAction.next,
+            validator: hasAnyValue
+                ? (value) =>
+                      FormValidators.required(value, fieldLabel: 'contact name')
+                : null,
+          ),
+          const SizedBox(height: 12),
+          AppValidatedTextField(
+            controller: phoneController,
+            label: 'Phone',
+            keyboardType: TextInputType.phone,
+            focusNode: phoneFocusNode,
+            textInputAction: TextInputAction.next,
+            validator: hasAnyValue
+                ? (value) => FormValidators.phone(value, required: true)
+                : null,
+          ),
+          const SizedBox(height: 12),
+          AppValidatedTextField(
+            controller: relationshipController,
+            label: 'Relationship',
+            focusNode: relationshipFocusNode,
+            textInputAction: TextInputAction.done,
+            validator: hasAnyValue
+                ? (value) =>
+                      FormValidators.required(value, fieldLabel: 'relationship')
+                : null,
+          ),
+        ],
       ),
     );
   }

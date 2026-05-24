@@ -23,7 +23,6 @@ void main() async {
 
   bool isAuthenticated = false;
   bool requiresPairing = false;
-  bool hasAdminSession = false;
 
   try {
     final snapshot = await sessionManager.initialize();
@@ -41,20 +40,11 @@ void main() async {
     }
   }
 
-  try {
-    final adminToken = await storage.readAdminAccessToken();
-    hasAdminSession = adminToken != null && adminToken.isNotEmpty;
-  } catch (_) {
-    hasAdminSession = false;
-  }
-
-  final initialLocation = hasAdminSession
-      ? '/admin/dashboard'
-      : isAuthenticated
-          ? '/home'
-          : requiresPairing
-              ? '/pairing/generate'
-              : '/login';
+  final initialLocation = isAuthenticated
+      ? '/home'
+      : requiresPairing
+          ? '/pairing/generate'
+          : '/login';
 
   runApp(
     ProviderScope(

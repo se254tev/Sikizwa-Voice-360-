@@ -3,9 +3,6 @@ import '../../features/ai/presentation/ai_chat_screen.dart';
 import '../features/auth/login_screen.dart';
 import '../features/auth/pairing_screen.dart';
 import '../features/auth/register_screen.dart';
-import '../features/auth/admin_login_screen.dart';
-import '../features/auth/admin_signup_screen.dart';
-import '../features/auth/admin_home_screen.dart';
 import '../features/home/home_screen.dart';
 import '../features/reports/report_list_screen.dart';
 import '../features/emergency/emergency_screen.dart';
@@ -19,9 +16,6 @@ class AppRouter {
       routes: [
         GoRoute(path: '/login', builder: (ctx, state) => const LoginScreen()),
         GoRoute(path: '/register', builder: (ctx, state) => const RegisterScreen()),
-        GoRoute(path: '/admin/login', builder: (ctx, state) => const AdminLoginScreen()),
-        GoRoute(path: '/admin/signup', builder: (ctx, state) => const AdminSignupScreen()),
-        GoRoute(path: '/admin/dashboard', builder: (ctx, state) => const AdminHomeScreen()),
         GoRoute(
           path: '/pairing',
           builder: (ctx, state) => const PairingScreen(mode: PairingMode.link),

@@ -2,13 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../src/core/validation/form_validators.dart';
+import '../../../src/shared/widgets/validated_text_field.dart';
+import '../../../src/shared/widgets/validation_summary.dart';
 import 'providers/auth_provider.dart';
 
 class PairingScreen extends ConsumerStatefulWidget {
-  const PairingScreen({
-    super.key,
-    required this.mode,
-  });
+  const PairingScreen({super.key, required this.mode});
 
   final PairingMode mode;
 
@@ -19,12 +19,17 @@ class PairingScreen extends ConsumerStatefulWidget {
 enum PairingMode { generate, link }
 
 class _PairingScreenState extends ConsumerState<PairingScreen> {
+  final _formKey = GlobalKey<FormState>();
   final _codeController = TextEditingController();
   final _phoneController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _codeFocusNode = FocusNode();
+  final _phoneFocusNode = FocusNode();
+  final _passwordFocusNode = FocusNode();
   String _pairingCode = '';
   bool _isLoading = false;
   String? _errorMessage;
+  List<String> _summaryErrors = const [];
 
   @override
   void initState() {
@@ -39,7 +44,71 @@ class _PairingScreenState extends ConsumerState<PairingScreen> {
     _codeController.dispose();
     _phoneController.dispose();
     _passwordController.dispose();
+    _codeFocusNode.dispose();
+    _phoneFocusNode.dispose();
+    _passwordFocusNode.dispose();
     super.dispose();
+  }
+
+  void _syncSummaryErrors() {
+    final errors = <String>[];
+
+    final codeError = FormValidators.required(
+      _codeController.text,
+      fieldLabel: 'pairing code',
+    );
+    if (codeError != null) {
+      errors.add(codeError);
+    }
+
+    final phoneError = FormValidators.phone(
+      _phoneController.text,
+      required: true,
+    );
+    if (phoneError != null) {
+      errors.add(phoneError);
+    }
+
+    final passwordError = FormValidators.required(
+      _passwordController.text,
+      fieldLabel: 'password',
+    );
+    if (passwordError != null) {
+      errors.add(passwordError);
+    }
+
+    setState(() {
+      _summaryErrors = errors;
+      _errorMessage = null;
+    });
+  }
+
+  void _focusFirstInvalid() {
+    final codeError = FormValidators.required(
+      _codeController.text,
+      fieldLabel: 'pairing code',
+    );
+    if (codeError != null) {
+      _codeFocusNode.requestFocus();
+      return;
+    }
+
+    final phoneError = FormValidators.phone(
+      _phoneController.text,
+      required: true,
+    );
+    if (phoneError != null) {
+      _phoneFocusNode.requestFocus();
+      return;
+    }
+
+    final passwordError = FormValidators.required(
+      _passwordController.text,
+      fieldLabel: 'password',
+    );
+    if (passwordError != null) {
+      _passwordFocusNode.requestFocus();
+    }
   }
 
   Future<void> _loadPairingCode() async {
@@ -71,12 +140,12 @@ class _PairingScreenState extends ConsumerState<PairingScreen> {
   }
 
   Future<void> _submitLink() async {
-    final code = _codeController.text.trim();
-    final phone = _phoneController.text.trim();
-    final password = _passwordController.text;
+    _syncSummaryErrors();
 
-    if (code.isEmpty || phone.isEmpty || password.isEmpty) {
-      setState(() => _errorMessage = 'Enter the pairing code, phone, and password.');
+    final isValid = _formKey.currentState?.validate() ?? false;
+
+    if (!isValid) {
+      _focusFirstInvalid();
       return;
     }
 
@@ -86,11 +155,13 @@ class _PairingScreenState extends ConsumerState<PairingScreen> {
     });
 
     try {
-      await ref.read(authProvider.notifier).pairDevice(
-        pairingCode: code,
-        phone: phone,
-        password: password,
-      );
+      await ref
+          .read(authProvider.notifier)
+          .pairDevice(
+            pairingCode: _codeController.text.trim(),
+            phone: _phoneController.text.trim(),
+            password: _passwordController.text,
+          );
       if (mounted) {
         context.go('/home');
       }
@@ -116,8 +187,13 @@ class _PairingScreenState extends ConsumerState<PairingScreen> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Text(
-                isGenerate ? 'Pair a phone safely' : 'Link this phone to your account',
-                style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
+                isGenerate
+                    ? 'Pair a phone safely'
+                    : 'Link this phone to your account',
+                style: const TextStyle(
+                  fontSize: 28,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
               const SizedBox(height: 12),
               Text(
@@ -142,7 +218,11 @@ class _PairingScreenState extends ConsumerState<PairingScreen> {
                       else
                         Text(
                           _pairingCode,
-                          style: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold, letterSpacing: 4),
+                          style: const TextStyle(
+                            fontSize: 32,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: 4,
+                          ),
                         ),
                     ],
                   ),
@@ -154,28 +234,62 @@ class _PairingScreenState extends ConsumerState<PairingScreen> {
                   label: const Text('Refresh code'),
                 ),
               ] else ...[
-                TextField(
-                  controller: _codeController,
-                  decoration: const InputDecoration(labelText: 'Pairing code'),
-                  textCapitalization: TextCapitalization.characters,
-                ),
-                const SizedBox(height: 16),
-                TextField(
-                  controller: _phoneController,
-                  decoration: const InputDecoration(labelText: 'Phone number'),
-                  keyboardType: TextInputType.phone,
-                ),
-                const SizedBox(height: 16),
-                TextField(
-                  controller: _passwordController,
-                  obscureText: true,
-                  decoration: const InputDecoration(labelText: 'Password'),
+                ValidationSummaryBanner(errors: _summaryErrors),
+                Form(
+                  key: _formKey,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      AppValidatedTextField(
+                        controller: _codeController,
+                        label: 'Pairing code',
+                        helperText:
+                            'Enter the code shown on your paired device.',
+                        focusNode: _codeFocusNode,
+                        textInputAction: TextInputAction.next,
+                        textCapitalization: TextCapitalization.characters,
+                        validator: (value) => FormValidators.required(
+                          value,
+                          fieldLabel: 'pairing code',
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      AppValidatedTextField(
+                        controller: _phoneController,
+                        label: 'Phone number',
+                        helperText:
+                            'Use your phone number with country code if needed.',
+                        focusNode: _phoneFocusNode,
+                        keyboardType: TextInputType.phone,
+                        textInputAction: TextInputAction.next,
+                        validator: (value) =>
+                            FormValidators.phone(value, required: true),
+                      ),
+                      const SizedBox(height: 16),
+                      AppValidatedTextField(
+                        controller: _passwordController,
+                        label: 'Password',
+                        helperText: 'Enter the password for your account.',
+                        focusNode: _passwordFocusNode,
+                        obscureText: true,
+                        textInputAction: TextInputAction.done,
+                        validator: (value) => FormValidators.required(
+                          value,
+                          fieldLabel: 'password',
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
                 const SizedBox(height: 24),
                 ElevatedButton(
                   onPressed: _isLoading ? null : _submitLink,
                   child: _isLoading
-                      ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
                       : const Text('Pair and sign in'),
                 ),
               ],

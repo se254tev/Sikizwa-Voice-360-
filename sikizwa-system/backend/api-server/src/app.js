@@ -32,6 +32,9 @@ const errorHandler = require('./middleware/errorHandler');
 const swaggerDoc = YAML.load('./docs/swagger.yaml');
 
 const app = express();
+
+app.set('trust proxy', 1);
+
 const allowedOrigins = ['https://sikizwa-voice-360.vercel.app'];
 
 const corsOptions = {
@@ -52,13 +55,17 @@ app.use(cors(corsOptions));
 app.options('*', cors(corsOptions));
 app.use(cookieParser());
 app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(morgan('combined'));
 app.use(xss());
 
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 200
+  max: 200,
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req) => req.ip,
+  skip: (req) => process.env.NODE_ENV !== 'production' && req.ip === undefined,
 });
 app.use(limiter);
 
