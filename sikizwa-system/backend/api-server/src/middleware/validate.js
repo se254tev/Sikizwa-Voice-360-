@@ -10,8 +10,14 @@ function validate(schema) {
     );
 
     if (error) {
-      return res.status(400).json({ error: error.details.map((detail) => detail.message).join(', ') });
+      return res.status(400).json({
+        success: false,
+        message: 'The request data is invalid. Please review the provided values and try again.',
+        errorCode: 'VALIDATION_INVALID_PAYLOAD',
+        details: error.details.map((detail) => detail.message),
+      });
     }
+
     next();
   };
 }

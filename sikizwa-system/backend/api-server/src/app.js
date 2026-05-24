@@ -24,6 +24,7 @@ const safeSpacesRoutes = require('./routes/safeSpaces');
 const distressSignalsRoutes = require('./routes/distressSignals');
 const distressSignalsAdminRoutes = require('./routes/distressSignalsAdmin');
 const deviceRoutes = require('./routes/device');
+const logger = require('./config/logger');
 const { ApiError } = require('./utils/apiError');
 const { NOT_FOUND_ERRORS } = require('./utils/errorMessages');
 const errorHandler = require('./middleware/errorHandler');
@@ -61,7 +62,28 @@ const limiter = rateLimit({
 });
 app.use(limiter);
 
-app.use(csurf({ cookie: { httpOnly: true, sameSite: 'strict', secure: process.env.NODE_ENV === 'production' } }));
+const csrfProtection = csurf({
+  cookie: {
+    httpOnly: true,
+    sameSite: 'strict',
+    secure: process.env.NODE_ENV === 'production',
+  },
+});
+
+const csrfExemptRoutes = new Set(['/api/admin/signup', '/api/admin/login']);
+
+app.use((req, res, next) => {
+  if (csrfExemptRoutes.has(req.path)) {
+    logger.debug('CSRF protection skipped for route', {
+      path: req.path,
+      origin: req.get('origin') || req.get('referer') || null,
+      hasAuthorization: Boolean(req.headers.authorization),
+    });
+    return next();
+  }
+
+  return csrfProtection(req, res, next);
+});
 
 app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(swaggerDoc));
 app.use('/api/auth', authRoutes);

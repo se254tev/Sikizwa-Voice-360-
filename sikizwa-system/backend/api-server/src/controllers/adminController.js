@@ -1,6 +1,7 @@
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
+const logger = require('../config/logger');
 
 function signToken(payload, secret, expiresIn = '60m') {
   return jwt.sign(payload, secret, { expiresIn });
@@ -19,8 +20,108 @@ function buildAdminResponse(user) {
   };
 }
 
+function getOrigin(req) {
+  return req.get('origin') || req.get('referer') || 'unknown';
+}
+
+function getAdminSecretHeader(req) {
+  const adminSecret = req.headers['x-admin-secret'];
+  return typeof adminSecret === 'string' ? adminSecret : '';
+}
+
+function buildSecurityLog(req, extra = {}) {
+  return {
+    method: req.method,
+    path: req.originalUrl,
+    origin: getOrigin(req),
+    headers: {
+      authorization: req.headers.authorization ? 'present' : 'missing',
+      'x-admin-secret': getAdminSecretHeader(req) ? 'present' : 'missing',
+    },
+    reqUser: req.user
+      ? {
+          id: req.user._id.toString(),
+          role: req.user.role,
+        }
+      : null,
+    ...extra,
+  };
+}
+
+function forbiddenResponse(res, message) {
+  return res.status(403).json({
+    success: false,
+    message,
+    errorCode: 'FORBIDDEN_ACCESS',
+  });
+}
+
+async function authorizeAdminSignup(req) {
+  const adminCount = await User.countDocuments({ role: 'admin' });
+
+  if (adminCount === 0) {
+    return { allowed: true, reason: 'bootstrap' };
+  }
+
+  const bearerToken = req.headers.authorization;
+
+  if (bearerToken && bearerToken.startsWith('Bearer ')) {
+    try {
+      const payload = jwt.verify(bearerToken.slice(7), process.env.JWT_SECRET);
+      if (!payload?.sub) {
+        return { allowed: false, reason: 'authenticated token missing sub claim' };
+      }
+
+      const currentUser = await User.findById(payload.sub).select('-passwordHash');
+      if (currentUser && currentUser.role === 'admin') {
+        req.user = currentUser;
+        return { allowed: true, reason: 'authenticated-admin' };
+      }
+
+      return { allowed: false, reason: 'authenticated token does not belong to an admin user' };
+    } catch (err) {
+      return { allowed: false, reason: `invalid admin token: ${err.message}` };
+    }
+  }
+
+  const adminSecret = getAdminSecretHeader(req);
+  const expectedSecret = process.env.ADMIN_SIGNUP_SECRET || '';
+
+  if (expectedSecret && adminSecret === expectedSecret) {
+    return { allowed: true, reason: 'admin-secret' };
+  }
+
+  return {
+    allowed: false,
+    reason: 'existing admins require an authenticated admin token or a valid X-Admin-Secret header',
+  };
+}
+
 async function signup(req, res, next) {
   try {
+    const authDecision = await authorizeAdminSignup(req);
+
+    if (!authDecision.allowed) {
+      logger.warn(
+        buildSecurityLog(req, {
+          rejectedAuthorizationReason: authDecision.reason,
+        }),
+        'Admin signup rejected'
+      );
+
+      return forbiddenResponse(
+        res,
+        'Admin sign-up is restricted. Sign in with an authenticated admin account or provide a valid X-Admin-Secret header.'
+      );
+    }
+
+    logger.info(
+      buildSecurityLog(req, {
+        authorizationDecision: authDecision.reason,
+      }),
+      'Admin signup authorization approved'
+    );
+
     const { fullName, phoneNumber, email, nationalId, password } = req.body;
 
     const existing = await User.findOne({
@@ -32,7 +133,11 @@ async function signup(req, res, next) {
     });
 
     if (existing) {
-      return res.status(409).json({ success: false, message: 'An admin with that email, phone number, or national ID already exists' });
+      return res.status(409).json({
+        success: false,
+        message: 'An admin with that email, phone number, or national ID already exists',
+        errorCode: 'DB_RECORD_CONFLICT',
+      });
     }
 
     const passwordHash = await bcrypt.hash(password, 12);
@@ -57,8 +162,19 @@ async function signup(req, res, next) {
     });
   } catch (err) {
     if (err.code === 11000) {
-      return res.status(409).json({ success: false, message: 'An admin with that email, phone number, or national ID already exists' });
+      return res.status(409).json({
+        success: false,
+        message: 'An admin with that email, phone number, or national ID already exists',
+        errorCode: 'DB_RECORD_CONFLICT',
+      });
     }
+
+    logger.error(
+      buildSecurityLog(req, {
+        errorMessage: err.message,
+      }),
+      'Admin signup failed'
+    );
 
     return next(err);
   }
