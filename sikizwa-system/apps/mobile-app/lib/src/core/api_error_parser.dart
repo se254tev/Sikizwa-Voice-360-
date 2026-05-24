@@ -6,6 +6,18 @@ class ApiErrorParser {
     required dynamic body,
     required String path,
   }) {
+    if (statusCode == 429) {
+      return 'Too many requests. Please try again later.';
+    }
+
+    if (statusCode == 408) {
+      return 'Connection is taking longer than expected.';
+    }
+
+    if (statusCode == 503) {
+      return 'Server is starting. Please wait a moment.';
+    }
+
     final rawMessage = _extractBackendMessage(body);
     final normalizedMessage = _normalizeMessage(rawMessage, path: path);
 
@@ -59,6 +71,18 @@ class ApiErrorParser {
 
     if (lower.isEmpty) {
       return null;
+    }
+
+    if (lower.contains('server is starting')) {
+      return 'Server is starting. Please wait a moment.';
+    }
+
+    if (lower.contains('timeout')) {
+      return 'Connection is taking longer than expected.';
+    }
+
+    if (lower.contains('too many requests')) {
+      return 'Too many requests. Please try again later.';
     }
 
     if (path.contains('/auth/login') && lower == 'invalid') {

@@ -43,6 +43,36 @@ void main() {
 
       expect(message, 'The request could not be completed. Please review your input and try again.');
     });
+
+    test('maps server start-up responses to a warm-up message', () {
+      final message = ApiErrorParser.userMessageForResponse(
+        statusCode: 503,
+        body: {'message': 'Server is starting'},
+        path: '/api/auth/login',
+      );
+
+      expect(message, 'Server is starting. Please wait a moment.');
+    });
+
+    test('maps timeout responses to a dedicated timeout message', () {
+      final message = ApiErrorParser.userMessageForResponse(
+        statusCode: 408,
+        body: {'message': 'Timeout'},
+        path: '/api/auth/register',
+      );
+
+      expect(message, 'Connection is taking longer than expected.');
+    });
+
+    test('maps rate-limited responses to a friendly retry message', () {
+      final message = ApiErrorParser.userMessageForResponse(
+        statusCode: 429,
+        body: {'message': 'Too many requests. Please try again later.'},
+        path: '/api/auth/login',
+      );
+
+      expect(message, 'Too many requests. Please try again later.');
+    });
   });
 
   group('ApiError', () {

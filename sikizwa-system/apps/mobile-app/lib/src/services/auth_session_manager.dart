@@ -47,6 +47,7 @@ class AuthSessionManager {
         return AuthSessionSnapshot.unauthenticated;
       }
 
+      await api.prepareForAuth();
       await api.refreshAccessToken();
       final refreshedAccessToken = await storage.readAccessToken();
 

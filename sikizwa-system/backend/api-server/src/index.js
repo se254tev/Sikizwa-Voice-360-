@@ -59,13 +59,19 @@ async function start() {
     server = http.createServer(app);
     initSocket(server);
 
-    server.listen(PORT, () => {
-      logger.info(`Server running on port ${PORT}`);
-      logger.info(`Environment: ${process.env.NODE_ENV || 'development'}`);
-      logger.info(`Redis URL: ${process.env.REDIS_URL ? '***configured***' : 'not configured'}`);
-    });
+    // Keep the connection open long enough for wake-up probes and cold-start traffic.
+    server.keepAliveTimeout = 120000;
+    server.headersTimeout = 120000;
 
     registerShutdownHandlers();
+
+    await new Promise((resolve, reject) => {
+      server.once('error', reject);
+      server.listen(PORT, '0.0.0.0', () => {
+        logger.info(`Server listening on port ${PORT}`);
+        resolve();
+      });
+    });
 
     initializeRedis();
     if (isRedisReady()) {
@@ -73,13 +79,14 @@ async function start() {
     } else {
       logger.warn(
         'Redis not immediately available, continuing anyway. ' +
-        'Redis connection will be established asynchronously.'
+          'Redis connection will be established asynchronously.'
       );
     }
 
     await connectDB(process.env.MONGO_ATLAS_URI || process.env.MONGO_URI);
   } catch (err) {
     logger.error('Failed to start server:', err);
+    process.exit(1);
   }
 }
 

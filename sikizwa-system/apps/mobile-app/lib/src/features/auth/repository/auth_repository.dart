@@ -30,6 +30,8 @@ class AuthRepository {
       password: sanitizedPassword,
     );
 
+    await api.prepareForAuth();
+
     final res = await api.post('/api/auth/login', data: {
       'identifier': sanitizedIdentifier,
       'password': sanitizedPassword,
@@ -79,6 +81,8 @@ class AuthRepository {
       phone: sanitizedPhone,
       password: sanitizedPassword,
     );
+
+    await api.prepareForAuth();
 
     final res = await api.post('/api/auth/register', data: {
       'fullName': sanitizedFullName,
@@ -157,6 +161,8 @@ class AuthRepository {
         ),
       );
     }
+
+    await api.prepareForAuth();
 
     final res = await api.post('/api/device/link', data: {
       'phone': sanitizedPhone,

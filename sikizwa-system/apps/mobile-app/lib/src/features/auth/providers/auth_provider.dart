@@ -14,6 +14,7 @@ class AuthState {
   final String? accessToken;
   final String? refreshToken;
   final String? error;
+  final String? statusMessage;
 
   const AuthState({
     this.isLoading = false,
@@ -22,6 +23,7 @@ class AuthState {
     this.accessToken,
     this.refreshToken,
     this.error,
+    this.statusMessage,
   });
 
   AuthState copyWith({
@@ -31,6 +33,7 @@ class AuthState {
     String? accessToken,
     String? refreshToken,
     String? error,
+    String? statusMessage,
   }) {
     return AuthState(
       isLoading: isLoading ?? this.isLoading,
@@ -39,6 +42,7 @@ class AuthState {
       accessToken: accessToken ?? this.accessToken,
       refreshToken: refreshToken ?? this.refreshToken,
       error: error,
+      statusMessage: statusMessage,
     );
   }
 }
@@ -85,42 +89,62 @@ class AuthNotifier extends StateNotifier<AuthState> {
     return _repo.requestPairingCode(deviceId: deviceId, deviceType: deviceType);
   }
 
+  Future<void> _runAuthOperation({
+    required String statusMessage,
+    required Future<void> Function() action,
+  }) async {
+    state = state.copyWith(
+      isLoading: true,
+      error: null,
+      statusMessage: statusMessage,
+    );
+
+    try {
+      await action();
+      state = state.copyWith(isLoading: false, statusMessage: null);
+    } catch (e) {
+      state = state.copyWith(
+        isLoading: false,
+        error: formatError(e),
+        statusMessage: null,
+      );
+      rethrow;
+    }
+  }
+
   Future<void> login({
     required String identifier,
     required String password,
   }) async {
-    state = state.copyWith(isLoading: true, error: null);
+    await _runAuthOperation(
+      statusMessage: 'Starting secure connection...',
+      action: () async {
+        final deviceId = await _storage.readDeviceId();
+        final deviceType = await _storage.readDeviceType();
+        if (deviceId == null || deviceId.isEmpty || deviceType == null || deviceType.isEmpty) {
+          throw ApiException(
+            error: const ApiError(
+              statusCode: 400,
+              message: 'Device information is not available. Please reopen the app and try again.',
+            ),
+          );
+        }
 
-    try {
-      final deviceId = await _storage.readDeviceId();
-      final deviceType = await _storage.readDeviceType();
-      if (deviceId == null || deviceId.isEmpty || deviceType == null || deviceType.isEmpty) {
-        throw ApiException(
-          error: const ApiError(
-            statusCode: 400,
-            message: 'Device information is not available. Please reopen the app and try again.',
-          ),
+        final session = await _repo.login(
+          identifier: identifier,
+          password: password,
+          deviceId: deviceId,
+          deviceType: deviceType,
         );
-      }
+        await _sessionManager.persistSession(session);
 
-      final session = await _repo.login(
-        identifier: identifier,
-        password: password,
-        deviceId: deviceId,
-        deviceType: deviceType,
-      );
-      await _sessionManager.persistSession(session);
-
-      state = state.copyWith(
-        isLoading: false,
-        isAuthenticated: true,
-        accessToken: session.accessToken,
-        refreshToken: session.refreshToken,
-      );
-    } catch (e) {
-      state = state.copyWith(isLoading: false, error: formatError(e));
-      rethrow;
-    }
+        state = state.copyWith(
+          isAuthenticated: true,
+          accessToken: session.accessToken,
+          refreshToken: session.refreshToken,
+        );
+      },
+    );
   }
 
   Future<void> register({
@@ -135,59 +159,56 @@ class AuthNotifier extends StateNotifier<AuthState> {
     String? medicalConditions,
     String? location,
   }) async {
-    state = state.copyWith(isLoading: true, error: null);
+    await _runAuthOperation(
+      statusMessage: 'Starting secure connection...',
+      action: () async {
+        final deviceId = await _storage.readDeviceId();
+        final deviceType = await _storage.readDeviceType();
+        if (deviceId == null || deviceId.isEmpty || deviceType == null || deviceType.isEmpty) {
+          throw ApiException(
+            error: const ApiError(
+              statusCode: 400,
+              message: 'Device information is not available. Please reopen the app and try again.',
+            ),
+          );
+        }
 
-    try {
-      final deviceId = await _storage.readDeviceId();
-      final deviceType = await _storage.readDeviceType();
-      if (deviceId == null || deviceId.isEmpty || deviceType == null || deviceType.isEmpty) {
-        throw ApiException(
-          error: const ApiError(
-            statusCode: 400,
-            message: 'Device information is not available. Please reopen the app and try again.',
-          ),
+        final session = await _repo.register(
+          fullName: fullName,
+          phone: phone,
+          password: password,
+          deviceId: deviceId,
+          deviceType: deviceType,
+          role: role,
+          emergencyContacts: emergencyContacts,
+          email: email,
+          bloodGroup: bloodGroup,
+          allergies: allergies,
+          medicalConditions: medicalConditions,
+          location: location,
         );
-      }
+        await _storage.saveEmergencyProfile(
+          jsonEncode({
+            'fullName': fullName,
+            'phone': phone,
+            'email': email,
+            'role': role,
+            'contacts': emergencyContacts,
+            'bloodGroup': bloodGroup,
+            'allergies': allergies,
+            'medicalConditions': medicalConditions,
+            'location': location,
+          }),
+        );
+        await _sessionManager.persistSession(session);
 
-      final session = await _repo.register(
-        fullName: fullName,
-        phone: phone,
-        password: password,
-        deviceId: deviceId,
-        deviceType: deviceType,
-        role: role,
-        emergencyContacts: emergencyContacts,
-        email: email,
-        bloodGroup: bloodGroup,
-        allergies: allergies,
-        medicalConditions: medicalConditions,
-        location: location,
-      );
-      await _storage.saveEmergencyProfile(
-        jsonEncode({
-          'fullName': fullName,
-          'phone': phone,
-          'email': email,
-          'role': role,
-          'contacts': emergencyContacts,
-          'bloodGroup': bloodGroup,
-          'allergies': allergies,
-          'medicalConditions': medicalConditions,
-          'location': location,
-        }),
-      );
-      await _sessionManager.persistSession(session);
-
-      state = state.copyWith(
-        isLoading: false,
-        isAuthenticated: true,
-        accessToken: session.accessToken,
-        refreshToken: session.refreshToken,
-      );
-    } catch (e) {
-      state = state.copyWith(isLoading: false, error: formatError(e));
-      rethrow;
-    }
+        state = state.copyWith(
+          isAuthenticated: true,
+          accessToken: session.accessToken,
+          refreshToken: session.refreshToken,
+        );
+      },
+    );
   }
 
   Future<void> pairDevice({
@@ -195,39 +216,36 @@ class AuthNotifier extends StateNotifier<AuthState> {
     required String phone,
     required String password,
   }) async {
-    state = state.copyWith(isLoading: true, error: null);
+    await _runAuthOperation(
+      statusMessage: 'Starting secure connection...',
+      action: () async {
+        final deviceId = await _storage.readDeviceId();
+        final deviceType = await _storage.readDeviceType();
+        if (deviceId == null || deviceId.isEmpty || deviceType == null || deviceType.isEmpty) {
+          throw ApiException(
+            error: const ApiError(
+              statusCode: 400,
+              message: 'Device information is not available. Please reopen the app and try again.',
+            ),
+          );
+        }
 
-    try {
-      final deviceId = await _storage.readDeviceId();
-      final deviceType = await _storage.readDeviceType();
-      if (deviceId == null || deviceId.isEmpty || deviceType == null || deviceType.isEmpty) {
-        throw ApiException(
-          error: const ApiError(
-            statusCode: 400,
-            message: 'Device information is not available. Please reopen the app and try again.',
-          ),
+        final session = await _repo.pairDevice(
+          pairingCode: pairingCode,
+          phone: phone,
+          password: password,
+          deviceId: deviceId,
+          deviceType: deviceType,
         );
-      }
+        await _sessionManager.persistSession(session);
 
-      final session = await _repo.pairDevice(
-        pairingCode: pairingCode,
-        phone: phone,
-        password: password,
-        deviceId: deviceId,
-        deviceType: deviceType,
-      );
-      await _sessionManager.persistSession(session);
-
-      state = state.copyWith(
-        isLoading: false,
-        isAuthenticated: true,
-        accessToken: session.accessToken,
-        refreshToken: session.refreshToken,
-      );
-    } catch (e) {
-      state = state.copyWith(isLoading: false, error: formatError(e));
-      rethrow;
-    }
+        state = state.copyWith(
+          isAuthenticated: true,
+          accessToken: session.accessToken,
+          refreshToken: session.refreshToken,
+        );
+      },
+    );
   }
 
   Future<void> logout() async {

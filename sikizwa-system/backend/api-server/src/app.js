@@ -30,13 +30,14 @@ const { NOT_FOUND_ERRORS } = require('./utils/errorMessages');
 const errorHandler = require('./middleware/errorHandler');
 
 const swaggerDoc = YAML.load('./docs/swagger.yaml');
+const isProduction = process.env.NODE_ENV === 'production';
 
 const app = express();
 
+// Trust the ingress proxy so req.ip reflects the real client address.
 app.set('trust proxy', 1);
 
 const allowedOrigins = ['https://sikizwa-voice-360.vercel.app'];
-
 const corsOptions = {
   origin: function (origin, callback) {
     if (!origin || allowedOrigins.includes(origin)) {
@@ -56,24 +57,81 @@ app.options('*', cors(corsOptions));
 app.use(cookieParser());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
-app.use(morgan('combined'));
 app.use(xss());
+app.use(morgan('combined'));
 
-const limiter = rateLimit({
+const getClientIp = (req) =>
+  req.ip || req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket.remoteAddress || 'unknown';
+
+app.use((req, res, next) => {
+  const isAuthRelated =
+    req.path === '/api/csrf-token' ||
+    req.path === '/health' ||
+    req.path.startsWith('/api/auth');
+
+  if (isAuthRelated) {
+    logger.info('Request received', {
+      method: req.method,
+      path: req.originalUrl,
+      ip: getClientIp(req),
+      forwardedFor: req.headers['x-forwarded-for'] || null,
+      realIp: req.headers['x-real-ip'] || null,
+      userAgent: req.headers['user-agent'] || null,
+    });
+  }
+
+  next();
+});
+
+const generalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 200,
+  max: 500,
   standardHeaders: true,
   legacyHeaders: false,
-  keyGenerator: (req) => req.ip,
-  skip: (req) => process.env.NODE_ENV !== 'production' && req.ip === undefined,
+  keyGenerator: (req) => getClientIp(req),
+  skip: (req) => !isProduction || req.path === '/health',
+  handler: (req, res) => {
+    logger.warn('Rate limit exceeded', {
+      path: req.originalUrl,
+      ip: getClientIp(req),
+      forwardedFor: req.headers['x-forwarded-for'] || null,
+    });
+
+    res.status(429).json({
+      success: false,
+      errorCode: 'RATE_LIMIT_EXCEEDED',
+      message: 'Too many requests. Please try again later.',
+    });
+  },
 });
-app.use(limiter);
+
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 100,
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req) => getClientIp(req),
+  skip: (req) => !isProduction || req.path === '/health',
+  handler: (req, res) => {
+    logger.warn('Auth rate limit exceeded', {
+      path: req.originalUrl,
+      ip: getClientIp(req),
+      forwardedFor: req.headers['x-forwarded-for'] || null,
+    });
+
+    res.status(429).json({
+      success: false,
+      errorCode: 'RATE_LIMIT_EXCEEDED',
+      message: 'Too many requests. Please try again later.',
+    });
+  },
+});
 
 const csrfProtection = csurf({
   cookie: {
     httpOnly: true,
     sameSite: 'strict',
-    secure: process.env.NODE_ENV === 'production',
+    secure: isProduction,
   },
 });
 
@@ -92,6 +150,12 @@ app.use((req, res, next) => {
   return csrfProtection(req, res, next);
 });
 
+if (isProduction) {
+  app.use(generalLimiter);
+  app.use('/api/auth', authLimiter);
+  app.use('/api/csrf-token', authLimiter);
+}
+
 app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(swaggerDoc));
 app.use('/api/auth', authRoutes);
 app.use('/api/admin', adminRoutes);
@@ -109,8 +173,31 @@ app.use('/api/distress-signal', distressSignalsRoutes);
 app.use('/api/distress-signals', distressSignalsAdminRoutes);
 app.use('/api/device', deviceRoutes);
 
-app.get('/health', (req, res) => res.json({ status: 'ok' }));
-app.get('/api/csrf-token', (req, res) => res.json({ csrfToken: req.csrfToken() }));
+app.get('/health', (req, res) => {
+  logger.info('Health check satisfied', {
+    ip: getClientIp(req),
+    forwardedFor: req.headers['x-forwarded-for'] || null,
+  });
+
+  res.json({
+    success: true,
+    status: 'OK',
+    uptime: process.uptime(),
+    timestamp: new Date().toISOString(),
+  });
+});
+
+app.get('/api/csrf-token', (req, res) => {
+  logger.info('CSRF token generated', {
+    ip: getClientIp(req),
+    forwardedFor: req.headers['x-forwarded-for'] || null,
+  });
+
+  res.json({
+    success: true,
+    csrfToken: req.csrfToken(),
+  });
+});
 
 app.use((req, res, next) => {
   next(
@@ -123,4 +210,5 @@ app.use((req, res, next) => {
 });
 
 app.use(errorHandler);
+
 module.exports = app;

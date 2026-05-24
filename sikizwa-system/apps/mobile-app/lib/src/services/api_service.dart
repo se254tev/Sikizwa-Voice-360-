@@ -18,9 +18,9 @@ class ApiService {
         _dio = Dio(
           BaseOptions(
             baseUrl: baseUrl,
-            connectTimeout: const Duration(seconds: 20),
-            receiveTimeout: const Duration(seconds: 25),
-            sendTimeout: const Duration(seconds: 20),
+            connectTimeout: const Duration(seconds: 60),
+            receiveTimeout: const Duration(seconds: 60),
+            sendTimeout: const Duration(seconds: 60),
             contentType: 'application/json',
             responseType: ResponseType.json,
           ),
@@ -47,6 +47,8 @@ class ApiService {
   Completer<void>? _refreshCompleter;
   bool _csrfRefreshing = false;
   Completer<void>? _csrfCompleter;
+  bool _authPreparing = false;
+  Completer<void>? _authPrepareCompleter;
 
   Future<void> initialize() => _ensureReady();
 
@@ -89,6 +91,79 @@ class ApiService {
     _csrfCookie = cookie;
     await _storage.saveCsrfToken(token);
     await _storage.saveCsrfCookie(cookie);
+  }
+
+  Future<void> clearCsrfState() async {
+    _csrfToken = null;
+    _csrfCookie = null;
+    await _storage.deleteCsrfToken();
+    await _storage.deleteCsrfCookie();
+  }
+
+  Future<void> prepareForAuth() async {
+    if (_authPreparing) {
+      await _authPrepareCompleter?.future;
+      return;
+    }
+
+    _authPreparing = true;
+    _authPrepareCompleter = Completer<void>();
+
+    try {
+      await clearCsrfState();
+      await _warmServer();
+      await ensureCsrfToken();
+    } on ApiException {
+      rethrow;
+    } on NetworkException {
+      throw ApiException(
+        statusCode: 503,
+        message: 'Server is starting. Please wait a moment.',
+      );
+    } catch (error) {
+      if (error is AppException) {
+        rethrow;
+      }
+      throw ApiException(
+        statusCode: 503,
+        message: 'Server is starting. Please wait a moment.',
+      );
+    } finally {
+      _authPreparing = false;
+      _authPrepareCompleter?.complete();
+      _authPrepareCompleter = null;
+    }
+  }
+
+  Future<void> _warmServer() async {
+    for (var attempt = 0; attempt < 3; attempt++) {
+      try {
+        await _request(
+          method: 'GET',
+          path: '/health',
+          timeoutMs: 60000,
+          skipAuth: true,
+          skipCsrf: true,
+        );
+        return;
+      } on ApiException {
+        if (attempt == 2) {
+          rethrow;
+        }
+      } on NetworkException {
+        if (attempt == 2) {
+          rethrow;
+        }
+      } catch (error) {
+        if (attempt == 2) {
+          rethrow;
+        }
+      }
+
+      if (attempt < 2) {
+        await Future<void>.delayed(const Duration(milliseconds: 1200));
+      }
+    }
   }
 
   Future<dynamic> get(
@@ -334,7 +409,7 @@ class ApiService {
         error: 'status=${error.response?.statusCode} url=$requestUrl message=${error.message} body=${_stringifyForLog(error.response?.data)}',
       );
 
-      if (!retry && !isRefreshRequest && error.response?.statusCode == 401 && enableAuth && _refreshToken != null) {
+      if (!retry && !isRefreshRequest && method == 'GET' && error.response?.statusCode == 401 && enableAuth && _refreshToken != null) {
         await refreshAccessToken();
         return _request(
           method: method,
@@ -350,7 +425,8 @@ class ApiService {
         );
       }
 
-      if (!retry && !skipCsrf && error.response?.statusCode == 403 && enableCsrf) {
+      if (!retry && !skipCsrf && method == 'GET' && error.response?.statusCode == 403 && enableCsrf) {
+        await clearCsrfState();
         await ensureCsrfToken();
         return _request(
           method: method,
@@ -598,7 +674,7 @@ class ApiService {
     if (error.type == DioExceptionType.connectionTimeout ||
         error.type == DioExceptionType.sendTimeout ||
         error.type == DioExceptionType.receiveTimeout) {
-      return NetworkException('The request timed out. Please try again.');
+      return NetworkException('Connection is taking longer than expected.');
     }
 
     if (error.type == DioExceptionType.connectionError ||
