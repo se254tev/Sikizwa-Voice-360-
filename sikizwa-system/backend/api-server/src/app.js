@@ -24,19 +24,31 @@ const safeSpacesRoutes = require('./routes/safeSpaces');
 const distressSignalsRoutes = require('./routes/distressSignals');
 const distressSignalsAdminRoutes = require('./routes/distressSignalsAdmin');
 const deviceRoutes = require('./routes/device');
+const { ApiError } = require('./utils/apiError');
+const { NOT_FOUND_ERRORS } = require('./utils/errorMessages');
 const errorHandler = require('./middleware/errorHandler');
 
 const swaggerDoc = YAML.load('./docs/swagger.yaml');
 
 const app = express();
+const allowedOrigins = ['https://sikizwa-voice-360.vercel.app'];
 
 const corsOptions = {
-  origin: process.env.CORS_ORIGIN?.split(',') || '*',
+  origin: function (origin, callback) {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+      return;
+    }
+
+    callback(new Error('Not allowed by CORS'));
+  },
   credentials: true,
+  optionsSuccessStatus: 200,
 };
 
 app.use(helmet());
 app.use(cors(corsOptions));
+app.options('*', cors(corsOptions));
 app.use(cookieParser());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
@@ -70,6 +82,16 @@ app.use('/api/device', deviceRoutes);
 
 app.get('/health', (req, res) => res.json({ status: 'ok' }));
 app.get('/api/csrf-token', (req, res) => res.json({ csrfToken: req.csrfToken() }));
+
+app.use((req, res, next) => {
+  next(
+    new ApiError({
+      statusCode: 404,
+      message: NOT_FOUND_ERRORS.routeNotFound.message,
+      errorCode: NOT_FOUND_ERRORS.routeNotFound.errorCode,
+    })
+  );
+});
 
 app.use(errorHandler);
 module.exports = app;
