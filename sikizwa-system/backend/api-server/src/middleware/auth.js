@@ -41,4 +41,7 @@ function requireRole(role) {
   };
 }
 
-module.exports = { requireAuth, requireRole };
+const verifyAdminToken = requireAuth;
+const requireAdminRole = requireRole;
+
+module.exports = { requireAuth, requireRole, verifyAdminToken, requireAdminRole };

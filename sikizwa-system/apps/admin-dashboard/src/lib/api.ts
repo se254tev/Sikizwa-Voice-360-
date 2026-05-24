@@ -44,3 +44,35 @@ export async function fetchCounsellors() {
   const res = await api.get('/counsellors');
   return res.data;
 }
+
+export async function adminSignup(data) {
+  const res = await api.post('/admin/signup', data);
+  return res.data;
+}
+
+export async function adminLogin(identifier, password) {
+  const res = await api.post('/admin/login', { identifier, password });
+  return res.data;
+}
+
+export async function adminLogout() {
+  const res = await api.post('/admin/logout');
+  return res.data;
+}
+
+export async function fetchAdminProfile() {
+  const res = await api.get('/admin/profile');
+  return res.data;
+}
+
+export function saveAdminToken(token) {
+  window.localStorage.setItem(ACCESS_TOKEN_KEY, token);
+}
+
+export function clearAdminToken() {
+  window.localStorage.removeItem(ACCESS_TOKEN_KEY);
+}
+
+export function getAdminToken() {
+  return window.localStorage.getItem(ACCESS_TOKEN_KEY)?.trim() || '';
+}

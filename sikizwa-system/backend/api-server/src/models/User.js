@@ -31,7 +31,9 @@ const userSchema = new Schema(
     languages: [{ type: String }],
     region: { type: String, trim: true },
     phone: { type: String, trim: true },
+    phoneNumber: { type: String, trim: true },
     email: { type: String, trim: true },
+    nationalId: { type: String, trim: true },
     emergencyContacts: [emergencyContactSchema],
     medicalProfile: medicalProfileSchema,
     location: { type: String, trim: true },
@@ -42,6 +44,8 @@ const userSchema = new Schema(
 
 userSchema.index({ anonymousId: 1 }, { unique: true, sparse: true });
 userSchema.index({ phone: 1 }, { unique: true, sparse: true });
+userSchema.index({ phoneNumber: 1 }, { unique: true, sparse: true });
 userSchema.index({ email: 1 }, { unique: true, sparse: true });
+userSchema.index({ nationalId: 1 }, { unique: true, sparse: true });
 
 module.exports = mongoose.model('User', userSchema);

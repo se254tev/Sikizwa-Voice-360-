@@ -10,6 +10,7 @@ const swaggerUi = require('swagger-ui-express');
 const YAML = require('yamljs');
 
 const authRoutes = require('./routes/auth');
+const adminRoutes = require('./routes/admin');
 const reportsRoutes = require('./routes/reports');
 const emergenciesRoutes = require('./routes/emergencies');
 const counsellorsRoutes = require('./routes/counsellors');
@@ -52,6 +53,7 @@ app.use(csurf({ cookie: { httpOnly: true, sameSite: 'strict', secure: process.en
 
 app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(swaggerDoc));
 app.use('/api/auth', authRoutes);
+app.use('/api/admin', adminRoutes);
 app.use('/api/reports', reportsRoutes);
 app.use('/api/emergencies', emergenciesRoutes);
 app.use('/api/counsellors', counsellorsRoutes);

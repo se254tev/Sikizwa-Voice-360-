@@ -13,6 +13,8 @@ class SecureStorageService {
   static const _keyDeviceId = 'device_id';
   static const _keyDeviceType = 'device_type';
   static const _keyEmergencyProfile = 'emergency_profile';
+  static const _keyAdminAccessToken = 'admin_access_token';
+  static const _keyAdminProfile = 'admin_profile';
 
   Future<void> saveAccessToken(String token) async {
     await _storage.write(key: _keyAccessToken, value: token);
@@ -69,6 +71,22 @@ class SecureStorageService {
   Future<void> deleteDeviceType() async => _storage.delete(key: _keyDeviceType);
 
   Future<void> deleteEmergencyProfile() async => _storage.delete(key: _keyEmergencyProfile);
+
+  Future<void> saveAdminAccessToken(String token) async {
+    await _storage.write(key: _keyAdminAccessToken, value: token);
+  }
+
+  Future<String?> readAdminAccessToken() async => _storage.read(key: _keyAdminAccessToken);
+
+  Future<void> deleteAdminAccessToken() async => _storage.delete(key: _keyAdminAccessToken);
+
+  Future<void> saveAdminProfile(String payload) async {
+    await _storage.write(key: _keyAdminProfile, value: payload);
+  }
+
+  Future<String?> readAdminProfile() async => _storage.read(key: _keyAdminProfile);
+
+  Future<void> deleteAdminProfile() async => _storage.delete(key: _keyAdminProfile);
 
   Future<void> saveAuthToken(String token) async => saveAccessToken(token);
 
