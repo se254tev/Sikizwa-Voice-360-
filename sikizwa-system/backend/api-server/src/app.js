@@ -20,6 +20,9 @@ const notificationsRoutes = require('./routes/notifications');
 const supportChatsRoutes = require('./routes/supportChats');
 const learningResourcesRoutes = require('./routes/learningResources');
 const safeSpacesRoutes = require('./routes/safeSpaces');
+const distressSignalsRoutes = require('./routes/distressSignals');
+const distressSignalsAdminRoutes = require('./routes/distressSignalsAdmin');
+const deviceRoutes = require('./routes/device');
 const errorHandler = require('./middleware/errorHandler');
 
 const swaggerDoc = YAML.load('./docs/swagger.yaml');
@@ -59,6 +62,9 @@ app.use('/api/support-chats', supportChatsRoutes);
 app.use('/api/learning-resources', learningResourcesRoutes);
 app.use('/api/safe-spaces', safeSpacesRoutes);
 app.use('/api/analytics', analyticsRoutes);
+app.use('/api/distress-signal', distressSignalsRoutes);
+app.use('/api/distress-signals', distressSignalsAdminRoutes);
+app.use('/api/device', deviceRoutes);
 
 app.get('/health', (req, res) => res.json({ status: 'ok' }));
 app.get('/api/csrf-token', (req, res) => res.json({ csrfToken: req.csrfToken() }));

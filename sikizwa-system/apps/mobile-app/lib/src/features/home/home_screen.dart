@@ -14,7 +14,9 @@ class HomeScreen extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             const Text('Voice Reporting', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 16),
+            const SizedBox(height: 8),
+            const Text('Choose the support flow that fits your moment.', style: TextStyle(fontSize: 16)),
+            const SizedBox(height: 24),
             ElevatedButton(
               onPressed: () => context.go('/reports'),
               child: const Text('Create a new report'),
@@ -28,6 +30,12 @@ class HomeScreen extends StatelessWidget {
             ElevatedButton(
               onPressed: () => context.go('/wellness'),
               child: const Text('Emotional wellness'),
+            ),
+            const SizedBox(height: 12),
+            ElevatedButton.icon(
+              onPressed: () => context.go('/ai-chat'),
+              icon: const Icon(Icons.auto_awesome),
+              label: const Text('Talk to Sikizwa AI'),
             ),
             const SizedBox(height: 12),
             TextButton(

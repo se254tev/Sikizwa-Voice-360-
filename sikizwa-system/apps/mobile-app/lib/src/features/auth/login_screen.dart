@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../providers/auth_provider.dart';
+import 'providers/auth_provider.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -11,24 +11,33 @@ class LoginScreen extends ConsumerStatefulWidget {
 }
 
 class _LoginScreenState extends ConsumerState<LoginScreen> {
-  final _emailController = TextEditingController();
+  final _usernameController = TextEditingController();
   final _passwordController = TextEditingController();
 
   @override
   void dispose() {
-    _emailController.dispose();
+    _usernameController.dispose();
     _passwordController.dispose();
     super.dispose();
   }
 
   Future<void> _submit() async {
-    final email = _emailController.text.trim();
+    final identifier = _usernameController.text.trim();
     final password = _passwordController.text;
+
+    if (identifier.isEmpty || password.isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Please enter your phone or username and password.')),
+        );
+      }
+      return;
+    }
+
     try {
-      await ref.read(authProvider.notifier).login(email: email, password: password);
+      await ref.read(authProvider.notifier).login(identifier: identifier, password: password);
       if (mounted) context.go('/home');
     } catch (e) {
-      // error is set in provider; show snackbar
       final err = ref.read(authProvider).error ?? e.toString();
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(err)));
     }
@@ -50,13 +59,22 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             const SizedBox(height: 8),
             const Text('Sign in to report safely.', style: TextStyle(fontSize: 16)),
             const SizedBox(height: 24),
-            TextField(controller: _emailController, decoration: const InputDecoration(labelText: 'Email')),
+            TextField(
+              controller: _usernameController,
+              decoration: const InputDecoration(labelText: 'Phone or username'),
+            ),
             const SizedBox(height: 16),
-            TextField(controller: _passwordController, obscureText: true, decoration: const InputDecoration(labelText: 'Password')),
+            TextField(
+              controller: _passwordController,
+              obscureText: true,
+              decoration: const InputDecoration(labelText: 'Password'),
+            ),
             const SizedBox(height: 24),
             ElevatedButton(
               onPressed: auth.isLoading ? null : _submit,
-              child: auth.isLoading ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)) : const Text('Continue'),
+              child: auth.isLoading
+                  ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
+                  : const Text('Continue'),
             ),
             const SizedBox(height: 12),
             TextButton(

@@ -1,0 +1,77 @@
+Flutter crash report.
+Please report a bug at https://github.com/flutter/flutter/issues.
+
+## command
+
+flutter analyze
+
+## exception
+
+_Exception: Exception: analysis server exited with code 255 and output:
+[stderr] #7      LspByteStreamServerChannel.listen.<anonymous closure> (package:analysis_server/src/lsp/channel/lsp_byte_stream_channel.dart:67)
+[stderr] #8      _rootRunUnary (dart:async/zone_root.dart:48)
+[stderr] #9      _CustomZone.runUnary (dart:async/zone.dart:733)
+[stderr] #10     _CustomZone.runUnaryGuarded (dart:async/zone.dart:633)
+[stderr] #11     _BufferingStreamSubscription._sendData (dart:async/stream_impl.dart:381)
+[stderr] #12     _DelayedData.perform (dart:async/stream_impl.dart:573)
+[stderr] #13     _PendingEvents.handleNext (dart:async/stream_impl.dart:678)
+[stderr] #14     _PendingEvents.schedule.<anonymous closure> (dart:async/stream_impl.dart:649)
+[stderr] #15     _rootRun (dart:async/zone_root.dart:27)
+[stderr] #16     _CustomZone.run (dart:async/zone.dart:726)
+[stderr] #17     _CustomZone.runGuarded (dart:async/zone.dart:625)
+[stderr] #18     _CustomZone.bindCallbackGuarded.<anonymous closure> (dart:async/zone.dart:666)
+[stderr] #19     _rootRun (dart:async/zone_root.dart:35)
+[stderr] #20     _CustomZone.run (dart:async/zone.dart:726)
+[stderr] #21     _CustomZone.runGuarded (dart:async/zone.dart:625)
+[stderr] #22     _CustomZone.bindCallbackGuarded.<anonymous closure> (dart:async/zone.dart:666)
+[stderr] #23     _microtaskLoop (dart:async/schedule_microtask.dart:40)
+[stderr] #24     _startMicrotaskLoop (dart:async/schedule_microtask.dart:49)
+[stderr] #25     _runPendingImmediateCallback (dart:isolate-patch/isolate_patch.dart:127)
+[stderr] #26     _RawReceivePort._handleMessage (dart:isolate-patch/isolate_patch.dart:193)
+
+```
+```
+
+## flutter doctor
+
+```
+[✓] Flutter (Channel stable, 3.44.0, on Microsoft Windows [Version 10.0.26100.8457], locale en-KE) [1,809ms]
+    • Flutter version 3.44.0 on channel stable at C:\Users\SHARON Otunga\Downloads\flutter_windows_3.44.0-stable\flutter
+    • Upstream repository https://github.com/flutter/flutter.git
+    • Framework revision 559ffa3f75 (8 days ago), 2026-05-15 14:13:13 -0700
+    • Engine revision 4c525dac5e
+    • Dart version 3.12.0
+    • DevTools version 2.57.0
+    • Feature flags: enable-web, enable-linux-desktop, enable-macos-desktop, enable-windows-desktop, enable-android, enable-ios, cli-animations, enable-native-assets, enable-swift-package-manager, omit-legacy-version-file, enable-lldb-debugging, enable-uiscene-migration
+
+[✓] Windows Version (Windows 11 or higher, 24H2, 2009) [8.1s]
+
+[!] Android toolchain - develop for Android devices (Android SDK version 36.1.0) [13.9s]
+    • Android SDK at C:\Android\Sdk
+    • Emulator version 36.5.11.0 (build_id 15261927) (CL:N/A)
+    • Platform android-36.1, build-tools 36.1.0
+    • ANDROID_HOME = C:\Android\Sdk
+    • Java binary at: C:\Program Files\Android\Android Studio\jbr\bin\java
+      This is the JDK bundled with the latest Android Studio installation on this machine.
+      To manually set the JDK path, use: `flutter config --jdk-dir="path/to/jdk"`.
+    • Java version OpenJDK Runtime Environment (build 21.0.10+-14961533-b1163.108)
+    ! Some Android licenses not accepted. To resolve this, run: flutter doctor --android-licenses
+
+[✓] Chrome - develop for the web [852ms]
+    • Chrome at C:\Program Files\Google\Chrome\Application\chrome.exe
+
+[✓] Visual Studio - develop Windows apps (Visual Studio Build Tools 2026 18.5.2) [849ms]
+    • Visual Studio at C:\Program Files (x86)\Microsoft Visual Studio\18\BuildTools
+    • Visual Studio Build Tools 2026 version 18.5.11723.231
+    • Windows 10 SDK version 10.0.26100.0
+
+[✓] Connected device (3 available) [1,501ms]
+    • Windows (desktop) • windows • windows-x64    • Microsoft Windows [Version 10.0.26100.8457]
+    • Chrome (web)      • chrome  • web-javascript • Google Chrome 148.0.7778.179
+    • Edge (web)        • edge    • web-javascript • Microsoft Edge 148.0.3967.54
+
+[✓] Network resources [2.4s]
+    • All expected network resources are available.
+
+! Doctor found issues in 1 category.
+```

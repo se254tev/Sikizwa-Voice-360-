@@ -9,21 +9,29 @@ DEFAULT_PROMPT = (
     "Do not provide medical diagnosis."
 )
 
+FALLBACK_REPLY = (
+    "I’m here with you. I can help you breathe, talk through what you’re feeling, and suggest next steps if you need support. "
+    "If you’re in immediate danger, please reach out to a trusted person or emergency services right away."
+)
+
 async def respond_chat(message, context):
-    response = client.chat.completions.create(
-        model=os.getenv('OPENAI_CHAT_MODEL', 'gpt-4o-mini'),
-        messages=[
-            {
-                'role': 'system',
-                'content': DEFAULT_PROMPT
-            },
-            {
-                'role': 'user',
-                'content': message
-            }
-        ],
-        temperature=0.7,
-        max_tokens=500
-    )
-    reply = response.choices[0].message.content or 'I am here with you. Can you tell me more?'
-    return {'reply': reply}
+    try:
+        response = client.chat.completions.create(
+            model=os.getenv('OPENAI_CHAT_MODEL', 'gpt-4o-mini'),
+            messages=[
+                {
+                    'role': 'system',
+                    'content': DEFAULT_PROMPT
+                },
+                {
+                    'role': 'user',
+                    'content': message
+                }
+            ],
+            temperature=0.7,
+            max_tokens=500
+        )
+        reply = response.choices[0].message.content or FALLBACK_REPLY
+        return {'reply': reply}
+    except Exception:
+        return {'reply': FALLBACK_REPLY}
