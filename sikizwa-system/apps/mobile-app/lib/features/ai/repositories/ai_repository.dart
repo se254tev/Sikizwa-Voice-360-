@@ -31,7 +31,7 @@ class AiRepository {
     }
 
     final response = await api.post(
-      '/chat',
+      '/api/ai/chat',
       data: {
         'message': message,
         'context': request.context,

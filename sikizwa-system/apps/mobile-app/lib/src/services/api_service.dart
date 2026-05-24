@@ -177,7 +177,6 @@ class ApiService {
         data: {'token': _refreshToken},
         timeoutMs: 15000,
         skipAuth: true,
-        skipCsrf: true,
         isRefreshRequest: true,
       );
 

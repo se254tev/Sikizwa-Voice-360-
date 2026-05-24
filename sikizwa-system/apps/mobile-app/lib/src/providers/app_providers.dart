@@ -18,9 +18,9 @@ final apiServiceProvider = Provider<ApiService>((ref) {
 final aiApiServiceProvider = Provider<ApiService>((ref) {
   final storage = ref.read(secureStorageProvider);
   return ApiService(
-    baseUrl: AppConfig.aiBaseUrl,
+    baseUrl: AppConfig.apiBaseUrl,
     storage: storage,
-    enableAuth: false,
-    enableCsrf: false,
+    enableAuth: true,
+    enableCsrf: true,
   );
 });
