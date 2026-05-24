@@ -25,7 +25,7 @@ const userSchema = new Schema(
     name: { type: String, trim: true },
     fullName: { type: String, trim: true },
     role: { type: String, enum: ['user', 'counsellor', 'admin', 'responder', 'other'], default: 'other', index: true },
-    anonymousId: { type: String, index: true },
+    anonymousId: { type: String },
     username: { type: String, trim: true },
     passwordHash: { type: String },
     languages: [{ type: String }],

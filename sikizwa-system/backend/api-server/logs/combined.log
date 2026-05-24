@@ -1,0 +1,7 @@
+{"level":"info","message":"REDIS_URL not set - using in-memory Socket.io adapter","service":"sikizwa-api","timestamp":"2026-05-24 17:11:53"}
+{"level":"warn","message":"RedisClient URL not provided, Redis will be disabled","service":"sikizwa-api","timestamp":"2026-05-24 17:11:53"}
+{"level":"warn","message":"Redis not immediately available, continuing anyway. Redis connection will be established asynchronously.","service":"sikizwa-api","timestamp":"2026-05-24 17:11:53"}
+{"level":"error","message":"MongoDB connection skipped: MONGO_URI not set","service":"sikizwa-api","timestamp":"2026-05-24 17:11:53"}
+{"level":"info","message":"Server running on port 4011","service":"sikizwa-api","timestamp":"2026-05-24 17:11:53"}
+{"level":"info","message":"Environment: development","service":"sikizwa-api","timestamp":"2026-05-24 17:11:53"}
+{"level":"info","message":"Redis URL: not configured","service":"sikizwa-api","timestamp":"2026-05-24 17:11:53"}

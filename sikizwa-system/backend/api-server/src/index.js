@@ -16,13 +16,11 @@ let server;
 async function gracefulShutdown(signal) {
   logger.info(`Received signal: ${signal}, starting graceful shutdown...`);
 
-  // Stop accepting new requests
   if (server) {
     server.close(async () => {
       logger.info('Server closed, cleaning up connections...');
 
       try {
-        // Close Redis connection
         await closeRedis();
         logger.info('Redis connection closed');
       } catch (err) {
@@ -33,7 +31,6 @@ async function gracefulShutdown(signal) {
       process.exit(0);
     });
 
-    // Force shutdown after 30 seconds
     setTimeout(() => {
       logger.error('Graceful shutdown timeout, forcing exit');
       process.exit(1);
@@ -43,16 +40,33 @@ async function gracefulShutdown(signal) {
   }
 }
 
-/**
- * Initialize and start the application
- */
+function registerShutdownHandlers() {
+  process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+  process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+
+  process.on('uncaughtException', (err) => {
+    logger.error('Uncaught Exception:', err);
+    gracefulShutdown('uncaughtException');
+  });
+
+  process.on('unhandledRejection', (reason, promise) => {
+    logger.error('Unhandled Rejection at:', promise, 'reason:', reason);
+  });
+}
+
 async function start() {
   try {
-    // Connect to MongoDB
-    await connectDB(process.env.MONGO_ATLAS_URI || process.env.MONGO_URI);
-    logger.info('Connected to MongoDB');
+    server = http.createServer(app);
+    initSocket(server);
 
-    // Initialize Redis
+    server.listen(PORT, () => {
+      logger.info(`Server running on port ${PORT}`);
+      logger.info(`Environment: ${process.env.NODE_ENV || 'development'}`);
+      logger.info(`Redis URL: ${process.env.REDIS_URL ? '***configured***' : 'not configured'}`);
+    });
+
+    registerShutdownHandlers();
+
     initializeRedis();
     if (isRedisReady()) {
       logger.info('Redis initialized');
@@ -63,39 +77,10 @@ async function start() {
       );
     }
 
-    // Create HTTP server and initialize Socket.io
-    server = http.createServer(app);
-    initSocket(server);
-
-    // Start listening
-    server.listen(PORT, () => {
-      logger.info(`Sikizwa backend listening on port ${PORT}`);
-      logger.info(`Environment: ${process.env.NODE_ENV || 'development'}`);
-      logger.info(`Redis URL: ${process.env.REDIS_URL ? '***configured***' : 'not configured'}`);
-    });
-
-    // Register graceful shutdown handlers
-    process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
-    process.on('SIGINT', () => gracefulShutdown('SIGINT'));
-
-    // Handle uncaught exceptions
-    process.on('uncaughtException', (err) => {
-      logger.error('Uncaught Exception:', err);
-      gracefulShutdown('uncaughtException');
-    });
-
-    // Handle unhandled promise rejections
-    process.on('unhandledRejection', (reason, promise) => {
-      logger.error('Unhandled Rejection at:', promise, 'reason:', reason);
-      // Don't exit on unhandled rejection, just log it
-      // unless it's critical
-    });
-
+    await connectDB(process.env.MONGO_ATLAS_URI || process.env.MONGO_URI);
   } catch (err) {
     logger.error('Failed to start server:', err);
-    process.exit(1);
   }
 }
 
-// Start the application
 start();
