@@ -16,7 +16,7 @@ class FormValidators {
     final trimmed = value?.trim() ?? '';
 
     if (trimmed.isEmpty) {
-      return 'Enter your phone or username to sign in.';
+      return 'Please enter your phone or username so we can sign you in.';
     }
 
     if (trimmed.length < 3) {
@@ -53,7 +53,7 @@ class FormValidators {
 
     if (trimmed.isEmpty) {
       if (required) {
-        return 'Enter a valid email address (example, name@example.com).';
+        return 'Please enter a valid email address (for example, name@example.com).';
       }
 
       return null;
@@ -62,7 +62,7 @@ class FormValidators {
     final isValid = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(trimmed);
 
     if (!isValid) {
-      return 'Enter a valid email address (example, name@example.com).';
+      return 'Please enter a valid email address (for example, name@example.com).';
     }
 
     return null;
@@ -107,7 +107,7 @@ class FormValidators {
     final normalized = trimmed.replaceAll(RegExp(r'[()\s-]'), '');
 
     if (!RegExp(r'^\+?[0-9]{7,15}$').hasMatch(normalized)) {
-      return 'Enter a valid phone number using digits only, with an optional country code.';
+      return 'Please enter a valid phone number using digits only, with an optional country code.';
     }
 
     return null;

@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../src/core/validation/form_validators.dart';
+import '../../../src/providers/settings_provider.dart';
+import '../../../src/services/settings_service.dart';
 import '../../../src/shared/widgets/validated_text_field.dart';
 import '../../../src/shared/widgets/validation_summary.dart';
 import '../auth/providers/auth_provider.dart';
@@ -15,12 +17,6 @@ class SettingsScreen extends ConsumerStatefulWidget {
 }
 
 class _SettingsScreenState extends ConsumerState<SettingsScreen> {
-  bool notificationsEnabled = true;
-  bool privacyMode = false;
-  String language = 'English';
-  String voicePreference = 'Calm voice';
-  String themePreference = 'System';
-
   final _contactFormKey = GlobalKey<FormState>();
   final _primaryNameController = TextEditingController();
   final _primaryPhoneController = TextEditingController();
@@ -72,6 +68,48 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     ScaffoldMessenger.of(
       context,
     ).showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  Future<void> _updateSettings(
+    AppSettings Function(AppSettings current) updater,
+  ) async {
+    try {
+      await ref.read(settingsProvider.notifier).updateSettings(updater);
+    } catch (_) {
+      _showMessage('Could not save your settings right now. Please try again.');
+    }
+  }
+
+  Future<void> _updateTheme(String value) async {
+    final mode = switch (value) {
+      'Light' => ThemeMode.light,
+      'Dark' => ThemeMode.dark,
+      _ => ThemeMode.system,
+    };
+
+    await _updateSettings((current) => current.copyWith(themeMode: mode));
+  }
+
+  Future<void> _updateLanguage(String value) async {
+    final code = switch (value) {
+      'Afrikaans' => 'af',
+      'Xitsonga' => 'xh',
+      _ => 'en',
+    };
+
+    await _updateSettings((current) => current.copyWith(languageCode: code));
+  }
+
+  Future<void> _setPrivacyShield(bool value) async {
+    await _updateSettings((current) => current.copyWith(profileVisibility: !value));
+  }
+
+  Future<void> _setHighContrast(bool value) async {
+    await _updateSettings((current) => current.copyWith(highContrast: value));
+  }
+
+  Future<void> _setReducedAnimations(bool value) async {
+    await _updateSettings((current) => current.copyWith(reducedAnimations: value));
   }
 
   List<Map<String, String>> get _rawContacts => [
@@ -192,6 +230,17 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final settings = ref.watch(settingsProvider);
+    final languageLabel = switch (settings.languageCode) {
+      'af' => 'Afrikaans',
+      'xh' => 'Xitsonga',
+      _ => 'English',
+    };
+    final themeLabel = switch (settings.themeMode) {
+      ThemeMode.light => 'Light',
+      ThemeMode.dark => 'Dark',
+      _ => 'System',
+    };
 
     return Scaffold(
       body: SafeArea(
@@ -210,18 +259,18 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     child: Column(
                       children: [
                         SwitchListTile.adaptive(
-                          value: notificationsEnabled,
-                          onChanged: (value) =>
-                              setState(() => notificationsEnabled = value),
+                          value: settings.notificationsEnabled,
+                          onChanged: (value) => _updateSettings(
+                            (current) => current.copyWith(notificationsEnabled: value),
+                          ),
                           title: const Text('Notifications'),
                           subtitle: const Text(
                             'Receive reminders and support updates in your calm rhythm.',
                           ),
                         ),
                         SwitchListTile.adaptive(
-                          value: privacyMode,
-                          onChanged: (value) =>
-                              setState(() => privacyMode = value),
+                          value: !settings.profileVisibility,
+                          onChanged: _setPrivacyShield,
                           title: const Text('Privacy shield'),
                           subtitle: const Text(
                             'Keep the experience focused on your comfort and control.',
@@ -231,33 +280,27 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                         _ChoiceGroup(
                           title: 'Language',
                           options: const ['English', 'Afrikaans', 'Xitsonga'],
-                          selected: language,
-                          onSelected: (value) =>
-                              setState(() => language = value),
+                          selected: languageLabel,
+                          onSelected: _updateLanguage,
                         ),
                         const SizedBox(height: 12),
                         _ChoiceGroup(
                           title: 'Voice preferences',
-                          options: const [
-                            'Calm voice',
-                            'Warm voice',
-                            'Clear voice',
-                          ],
-                          selected: voicePreference,
-                          onSelected: (value) =>
-                              setState(() => voicePreference = value),
+                          options: const ['Calm voice', 'Warm voice', 'Clear voice'],
+                          selected: 'Calm voice',
+                          onSelected: (_) {},
                         ),
                       ],
                     ),
                   ),
                   const SizedBox(height: 16),
                   _SettingsCard(
-                    title: 'Theme settings',
+                    title: 'Theme and accessibility',
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Select your preferred visual tone for this session.',
+                          'Adjust the visual tone and readability so the app feels grounded and easy to use.',
                           style: theme.textTheme.bodyMedium?.copyWith(
                             height: 1.5,
                           ),
@@ -270,12 +313,47 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                               .map(
                                 (option) => _ThemeChip(
                                   label: option,
-                                  selected: themePreference == option,
-                                  onTap: () =>
-                                      setState(() => themePreference = option),
+                                  selected: themeLabel == option,
+                                  onTap: () => _updateTheme(option),
                                 ),
                               )
                               .toList(),
+                        ),
+                        const SizedBox(height: 18),
+                        SwitchListTile.adaptive(
+                          value: settings.highContrast,
+                          onChanged: _setHighContrast,
+                          title: const Text('High contrast mode'),
+                          subtitle: const Text(
+                            'Increase contrast for clearer reading and safer navigation.',
+                          ),
+                        ),
+                        SwitchListTile.adaptive(
+                          value: settings.reducedAnimations,
+                          onChanged: _setReducedAnimations,
+                          title: const Text('Reduced motion'),
+                          subtitle: const Text(
+                            'Minimise motion effects for a calmer experience.',
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Row(
+                          children: [
+                            const Text('Text size'),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Slider(
+                                value: settings.fontScale.clamp(0.9, 1.3),
+                                min: 0.9,
+                                max: 1.3,
+                                divisions: 8,
+                                label: settings.fontScale.toStringAsFixed(2),
+                                onChanged: (value) => _updateSettings(
+                                  (current) => current.copyWith(fontScale: value),
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                       ],
                     ),

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'src/app.dart';
 import 'src/config/app_config.dart';
+import 'src/navigation/app_router.dart';
 import 'src/services/api_service.dart';
 import 'src/services/auth_session_manager.dart';
 import 'src/services/device_detection_service.dart';
@@ -46,9 +47,11 @@ void main() async {
           ? '/pairing/generate'
           : '/login';
 
+  final router = AppRouter.router(initialLocation);
+
   runApp(
     ProviderScope(
-      child: SikizwaApp(initialLocation: initialLocation),
+      child: SikizwaApp(router: router),
     ),
   );
 }

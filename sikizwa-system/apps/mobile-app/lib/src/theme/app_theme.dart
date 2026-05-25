@@ -8,13 +8,13 @@ class AppTheme {
   static const _card = Color(0xFFFFFFFF);
   static const _cardDark = Color(0xFF24163C);
 
-  static ThemeData _base(Brightness brightness) {
+  static ThemeData forBrightness(Brightness brightness, {bool highContrast = false}) {
     final isDark = brightness == Brightness.dark;
     final colorScheme = ColorScheme.fromSeed(
       seedColor: _primary,
       brightness: brightness,
-      primary: _primary,
-      secondary: _primarySoft,
+      primary: highContrast ? const Color(0xFF3B1A73) : _primary,
+      secondary: highContrast ? const Color(0xFF9B5CF6) : _primarySoft,
     );
 
     return ThemeData(
@@ -54,7 +54,7 @@ class AppTheme {
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
-          backgroundColor: _primary,
+          backgroundColor: highContrast ? const Color(0xFF3B1A73) : _primary,
           foregroundColor: Colors.white,
           elevation: 0,
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
@@ -64,6 +64,6 @@ class AppTheme {
     );
   }
 
-  static final light = _base(Brightness.light);
-  static final dark = _base(Brightness.dark);
+  static final light = forBrightness(Brightness.light);
+  static final dark = forBrightness(Brightness.dark);
 }

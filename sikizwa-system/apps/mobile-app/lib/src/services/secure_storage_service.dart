@@ -87,4 +87,17 @@ class SecureStorageService {
       deleteEmergencyProfile(),
     ]);
   }
+
+  Future<void> saveBoolean(String key, bool value) async {
+    await _storage.write(key: key, value: value ? 'true' : 'false');
+  }
+
+  Future<bool?> readBoolean(String key) async {
+    final value = await _storage.read(key: key);
+    if (value == null) {
+      return null;
+    }
+
+    return value == 'true';
+  }
 }
