@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -154,19 +156,6 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
       errors.add(phoneError);
     }
 
-    final passwordError = FormValidators.password(
-      _passwordController.text,
-      required: true,
-    );
-    if (passwordError != null) {
-      errors.add(passwordError);
-    }
-
-    final emailError = FormValidators.email(_emailController.text);
-    if (emailError != null) {
-      errors.add(emailError);
-    }
-
     for (final contact in _rawEmergencyContacts) {
       final hasAnyValue =
           (contact['name'] ?? '').isNotEmpty ||
@@ -214,19 +203,6 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     );
     if (phoneError != null) {
       return _phoneFocusNode;
-    }
-
-    final passwordError = FormValidators.password(
-      _passwordController.text,
-      required: true,
-    );
-    if (passwordError != null) {
-      return _passwordFocusNode;
-    }
-
-    final emailError = FormValidators.email(_emailController.text);
-    if (emailError != null) {
-      return _emailFocusNode;
     }
 
     final primary = _rawEmergencyContacts[0];
@@ -277,6 +253,12 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
         (contact['relationship'] ?? '').isNotEmpty;
   }
 
+  String _generateRegistrationPassword() {
+    const allowed = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#%^&*';
+    final random = Random.secure();
+    return List.generate(12, (_) => allowed[random.nextInt(allowed.length)]).join();
+  }
+
   Future<void> _submit() async {
     _syncSummaryErrors();
 
@@ -289,7 +271,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
 
     final fullName = _fullNameController.text.trim();
     final phone = _phoneController.text.trim();
-    final password = _passwordController.text;
+    final password = _generateRegistrationPassword();
 
     final rawContacts = _rawEmergencyContacts;
 
@@ -376,7 +358,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                           ),
                           SizedBox(height: 10),
                           Text(
-                            'Your details can be shared at your pace. Required information is clearly separated from optional support preferences.',
+                            'We only need your full name and phone number to create your account safely.',
                             style: TextStyle(
                               fontSize: 15,
                               color: Colors.white70,
@@ -445,105 +427,9 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                             label: 'Phone number *',
                             keyboardType: TextInputType.phone,
                             focusNode: _phoneFocusNode,
-                            textInputAction: TextInputAction.next,
+                            textInputAction: TextInputAction.done,
                             validator: (value) =>
                                 FormValidators.phone(value, required: true),
-                          ),
-                          const SizedBox(height: 12),
-                          _buildField(
-                            controller: _passwordController,
-                            label: 'Password *',
-                            obscureText: true,
-                            focusNode: _passwordFocusNode,
-                            textInputAction: TextInputAction.next,
-                            validator: (value) =>
-                                FormValidators.password(value, required: true),
-                          ),
-                          const SizedBox(height: 12),
-                          _buildField(
-                            controller: _roleController,
-                            label: 'Role',
-                            helperText:
-                                'Optional. Share how you want to use the app.',
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    _sectionCard(
-                      title: 'Optional details',
-                      subtitle:
-                          'Leave these blank if you prefer not to share them right now.',
-                      child: Column(
-                        children: [
-                          _buildField(
-                            controller: _emailController,
-                            label: 'Email',
-                            keyboardType: TextInputType.emailAddress,
-                            focusNode: _emailFocusNode,
-                            textInputAction: TextInputAction.next,
-                            validator: FormValidators.email,
-                            helperText:
-                                'Use an address such as name@example.com.',
-                          ),
-                          const SizedBox(height: 12),
-                          _buildField(
-                            controller: _bloodGroupController,
-                            label: 'Blood group',
-                          ),
-                          const SizedBox(height: 12),
-                          _buildField(
-                            controller: _allergiesController,
-                            label: 'Allergies',
-                          ),
-                          const SizedBox(height: 12),
-                          _buildField(
-                            controller: _medicalConditionsController,
-                            label: 'Medical conditions',
-                          ),
-                          const SizedBox(height: 12),
-                          _buildField(
-                            controller: _locationController,
-                            label: 'Location',
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    _sectionCard(
-                      title: 'Emergency contacts',
-                      subtitle:
-                          'Optional. Complete any contact you want saved, and leave the rest blank.',
-                      child: Column(
-                        children: [
-                          _buildContactCard(
-                            'Primary contact',
-                            _primaryNameController,
-                            _primaryPhoneController,
-                            _primaryRelationshipController,
-                            _primaryNameFocusNode,
-                            _primaryPhoneFocusNode,
-                            _primaryRelationshipFocusNode,
-                          ),
-                          const SizedBox(height: 12),
-                          _buildContactCard(
-                            'Secondary contact',
-                            _secondaryNameController,
-                            _secondaryPhoneController,
-                            _secondaryRelationshipController,
-                            _secondaryNameFocusNode,
-                            _secondaryPhoneFocusNode,
-                            _secondaryRelationshipFocusNode,
-                          ),
-                          const SizedBox(height: 12),
-                          _buildContactCard(
-                            'Guardian or trusted contact',
-                            _guardianNameController,
-                            _guardianPhoneController,
-                            _guardianRelationshipController,
-                            _guardianNameFocusNode,
-                            _guardianPhoneFocusNode,
-                            _guardianRelationshipFocusNode,
                           ),
                         ],
                       ),
@@ -646,68 +532,4 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     );
   }
 
-  Widget _buildContactCard(
-    String title,
-    TextEditingController nameController,
-    TextEditingController phoneController,
-    TextEditingController relationshipController,
-    FocusNode nameFocusNode,
-    FocusNode phoneFocusNode,
-    FocusNode relationshipFocusNode,
-  ) {
-    final hasAnyValue =
-        nameController.text.trim().isNotEmpty ||
-        phoneController.text.trim().isNotEmpty ||
-        relationshipController.text.trim().isNotEmpty;
-
-    return Container(
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(20),
-        color: Theme.of(context).colorScheme.surface,
-      ),
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            title,
-            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
-          ),
-          const SizedBox(height: 12),
-          AppValidatedTextField(
-            controller: nameController,
-            label: 'Name',
-            focusNode: nameFocusNode,
-            textInputAction: TextInputAction.next,
-            validator: hasAnyValue
-                ? (value) =>
-                      FormValidators.required(value, fieldLabel: 'contact name')
-                : null,
-          ),
-          const SizedBox(height: 12),
-          AppValidatedTextField(
-            controller: phoneController,
-            label: 'Phone',
-            keyboardType: TextInputType.phone,
-            focusNode: phoneFocusNode,
-            textInputAction: TextInputAction.next,
-            validator: hasAnyValue
-                ? (value) => FormValidators.phone(value, required: true)
-                : null,
-          ),
-          const SizedBox(height: 12),
-          AppValidatedTextField(
-            controller: relationshipController,
-            label: 'Relationship',
-            focusNode: relationshipFocusNode,
-            textInputAction: TextInputAction.done,
-            validator: hasAnyValue
-                ? (value) =>
-                      FormValidators.required(value, fieldLabel: 'relationship')
-                : null,
-          ),
-        ],
-      ),
-    );
-  }
 }

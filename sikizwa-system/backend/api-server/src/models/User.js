@@ -20,6 +20,26 @@ const medicalProfileSchema = new Schema(
   { _id: false }
 );
 
+const preferencesSchema = new Schema(
+  {
+    notifications: {
+      push_enabled: { type: Boolean, default: true },
+      email_enabled: { type: Boolean, default: true },
+      sms_enabled: { type: Boolean, default: false },
+    },
+    privacy: {
+      analytics_tracking: { type: Boolean, default: true },
+      crash_reporting_consent: { type: Boolean, default: false },
+      profile_visibility: {
+        type: String,
+        enum: ['private', 'public', 'anonymous'],
+        default: 'private',
+      },
+    },
+  },
+  { _id: false }
+);
+
 const userSchema = new Schema(
   {
     name: { type: String, trim: true },
@@ -38,6 +58,7 @@ const userSchema = new Schema(
     medicalProfile: medicalProfileSchema,
     location: { type: String, trim: true },
     metadata: { type: Schema.Types.Mixed },
+    preferences: { type: preferencesSchema, default: () => ({}) },
   },
   { timestamps: true }
 );
@@ -47,5 +68,7 @@ userSchema.index({ phone: 1 }, { unique: true, sparse: true });
 userSchema.index({ phoneNumber: 1 }, { unique: true, sparse: true });
 userSchema.index({ email: 1 }, { unique: true, sparse: true });
 userSchema.index({ nationalId: 1 }, { unique: true, sparse: true });
+userSchema.index({ 'metadata.trustedPendants.pendantId': 1 }, { sparse: true });
+userSchema.index({ role: 1 });
 
 module.exports = mongoose.model('User', userSchema);

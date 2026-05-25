@@ -1,6 +1,8 @@
 const mongoose = require('mongoose');
 const DistressSignal = require('../models/DistressSignal');
 const { getSocket } = require('../utils/socketRegistry');
+const { buildSuccessResponse, buildFailureResponse } = require('../utils/responseHelpers');
+const { ApiError } = require('../utils/ApiError');
 
 function invalid(message, status = 400) {
   const error = new Error(message);
@@ -51,11 +53,11 @@ async function createDistressSignal(req, res) {
     const { user_id, lat, lng, timestamp, message } = req.body;
 
     if (typeof user_id !== 'string' || !mongoose.Types.ObjectId.isValid(user_id)) {
-      return res.status(400).json({ error: 'user_id is required and must be a valid user id' });
+      throw new ApiError({ statusCode: 400, message: 'user_id is required and must be a valid user id', errorCode: 'INVALID_USER_ID' });
     }
 
     if (user_id !== req.user._id.toString()) {
-      return res.status(400).json({ error: 'user_id does not match authenticated user' });
+      throw new ApiError({ statusCode: 403, message: 'user_id does not match authenticated user', errorCode: 'USER_MISMATCH' });
     }
 
     const parsedLat = parseCoordinate(lat, 'lat');
@@ -65,12 +67,12 @@ async function createDistressSignal(req, res) {
     let parsedMessage;
     if (message !== undefined) {
       if (typeof message !== 'string') {
-        return res.status(400).json({ error: 'message must be a string' });
+        throw new ApiError({ statusCode: 400, message: 'message must be a string', errorCode: 'INVALID_MESSAGE_TYPE' });
       }
 
       parsedMessage = message.trim();
       if (parsedMessage.length > 500) {
-        return res.status(400).json({ error: 'message must be 500 characters or fewer' });
+        throw new ApiError({ statusCode: 400, message: 'message must be 500 characters or fewer', errorCode: 'MESSAGE_TOO_LONG' });
       }
     }
 
@@ -99,7 +101,7 @@ async function createDistressSignal(req, res) {
       });
     }
 
-    return res.status(201).json({
+    return res.status(201).json(buildSuccessResponse({
       id: signal._id,
       user_id: signal.user.toString(),
       lat: signal.lat,
@@ -108,14 +110,22 @@ async function createDistressSignal(req, res) {
       status: signal.status,
       severity: signal.severity,
       isLockedModeActive: signal.isLockedModeActive,
-    });
+    }, 'Distress signal created successfully.'));
   } catch (err) {
-    if (err.status) {
-      return res.status(err.status).json({ error: err.message });
+    if (err instanceof ApiError) {
+      return res.status(err.statusCode || 400).json(buildFailureResponse({
+        statusCode: err.statusCode || 400,
+        message: err.message,
+        errorCode: err.errorCode || 'DISTRESS_SIGNAL_ERROR',
+      }));
     }
 
     console.error(err);
-    return res.status(500).json({ error: 'failed to create distress signal' });
+    return res.status(500).json(buildFailureResponse({
+      statusCode: 500,
+      message: 'Failed to create distress signal',
+      errorCode: 'DISTRESS_SIGNAL_FAILURE',
+    }));
   }
 }
 
@@ -126,8 +136,8 @@ async function listDistressSignals(req, res) {
       .sort({ timestamp: -1 })
       .limit(100);
 
-    return res.json(
-      signals.map((signal) => ({
+    return res.json(buildSuccessResponse({
+      signals: signals.map((signal) => ({
         id: signal._id,
         user: {
           id: signal.user?._id ? signal.user._id.toString() : null,
@@ -142,11 +152,15 @@ async function listDistressSignals(req, res) {
         status: signal.status,
         severity: signal.severity,
         isLockedModeActive: signal.isLockedModeActive,
-      }))
-    );
+      })),
+    }, 'Distress signals loaded successfully.'));
   } catch (err) {
     console.error(err);
-    return res.status(500).json({ error: 'failed to load distress signals' });
+    return res.status(500).json(buildFailureResponse({
+      statusCode: 500,
+      message: 'Failed to load distress signals',
+      errorCode: 'DISTRESS_SIGNALS_LOAD_FAILED',
+    }));
   }
 }
 

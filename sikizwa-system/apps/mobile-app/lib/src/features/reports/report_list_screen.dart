@@ -12,7 +12,7 @@ class ReportListScreen extends ConsumerWidget {
     final theme = Theme.of(context);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Reports')),
+      appBar: AppBar(title: const Text('Report a problem')),
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(16),
@@ -36,14 +36,14 @@ class ReportListScreen extends ConsumerWidget {
                   });
 
               final summaryMessage = reports.isEmpty
-                  ? 'No reports are available yet. Start a new report to build your support history.'
-                  : 'Showing ${reports.length} recent report${reports.length == 1 ? '' : 's'} with ${highestRisk == 'low' ? 'calm' : highestRisk} support signals.';
+                  ? 'No problem reports are available yet. Start a new report to build your support history.'
+                  : 'Showing ${reports.length} recent problem report${reports.length == 1 ? '' : 's'} with ${highestRisk == 'low' ? 'calm' : highestRisk} support signals.';
 
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   _SummaryCard(
-                    title: 'Your latest reports',
+                    title: 'Your latest problem reports',
                     subtitle: summaryMessage,
                     theme: theme,
                   ),
@@ -196,12 +196,12 @@ class _EmptyReportState extends StatelessWidget {
           Icon(Icons.note_add_outlined, size: 48, color: theme.colorScheme.primary),
           const SizedBox(height: 12),
           Text(
-            'No reports yet',
+            'No problem reports yet',
             style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
           ),
           const SizedBox(height: 8),
           Text(
-            'New reports will appear here once your support updates are saved.',
+            'Problem reports will appear here once your support updates are saved.',
             textAlign: TextAlign.center,
             style: theme.textTheme.bodyMedium,
           ),

@@ -1,6 +1,7 @@
 const express = require('express');
 const rateLimit = require('express-rate-limit');
 const adminController = require('../controllers/adminController');
+const adminReportController = require('../controllers/adminReportController');
 const validate = require('../middleware/validate');
 const { verifyAdminToken, requireAdminRole } = require('../middleware/auth');
 const { adminSignupSchema, adminLoginSchema } = require('../validators/adminValidator');
@@ -19,5 +20,6 @@ router.post('/signup', validate(adminSignupSchema), adminController.signup);
 router.post('/login', adminLoginLimiter, validate(adminLoginSchema), adminController.login);
 router.post('/logout', verifyAdminToken, requireAdminRole('admin'), adminController.logout);
 router.get('/profile', verifyAdminToken, requireAdminRole('admin'), adminController.profile);
+router.get('/reports', verifyAdminToken, requireAdminRole('admin'), adminReportController.listAdminReports);
 
 module.exports = router;

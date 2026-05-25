@@ -31,8 +31,8 @@ export async function fetchReportTrends() {
 }
 
 export async function fetchReports() {
-  const res = await api.get('/reports');
-  return res.data;
+  const res = await api.get('/admin/reports');
+  return Array.isArray(res.data?.data?.items) ? res.data.data.items : [];
 }
 
 export async function fetchEmergencies() {

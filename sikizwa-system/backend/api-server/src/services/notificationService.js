@@ -1,5 +1,7 @@
 const Notification = require('../models/Notification');
+const User = require('../models/User');
 const { io } = require('../utils/socketRegistry');
+const { shouldSendNotification } = require('../utils/settings');
 
 async function notifyEmergency(emergency) {
   await Notification.create({
@@ -15,6 +17,11 @@ async function notifyEmergency(emergency) {
 }
 
 async function sendNotification(userId, payload) {
+  const user = await User.findById(userId).select('preferences');
+  if (!user || !shouldSendNotification(user, payload.channel || 'push')) {
+    return null;
+  }
+
   const notification = await Notification.create({
     toUser: userId,
     type: payload.type,

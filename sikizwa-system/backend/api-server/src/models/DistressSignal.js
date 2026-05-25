@@ -11,8 +11,13 @@ const distressSignalSchema = new Schema(
     status: { type: String, enum: ['active'], default: 'active', index: true },
     severity: { type: String, enum: ['critical'], default: 'critical', index: true },
     isLockedModeActive: { type: Boolean, default: true },
+    source: { type: String, default: 'APP', index: true },
+    pendantId: { type: String, trim: true, index: true },
+    batteryLevel: { type: Number, min: 0, max: 100 },
   },
   { timestamps: true }
 );
+
+distressSignalSchema.index({ user: 1, pendantId: 1, source: 1, status: 1, createdAt: -1 });
 
 module.exports = mongoose.model('DistressSignal', distressSignalSchema);

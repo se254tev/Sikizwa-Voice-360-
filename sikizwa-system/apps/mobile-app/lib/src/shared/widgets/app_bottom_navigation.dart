@@ -42,7 +42,7 @@ class AppBottomNavigationBar extends StatelessWidget {
             NavigationDestination(
               icon: Icon(Icons.support_agent_outlined),
               selectedIcon: Icon(Icons.support_agent),
-              label: 'Support',
+              label: 'Care',
             ),
             NavigationDestination(
               icon: Icon(Icons.settings_outlined),

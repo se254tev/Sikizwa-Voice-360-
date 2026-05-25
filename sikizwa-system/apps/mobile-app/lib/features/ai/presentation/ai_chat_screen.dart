@@ -49,7 +49,7 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Sikizwa AI Companion'),
+        title: const Text('Sikizwa Care Companion'),
         actions: [
           if (state.error != null)
             TextButton(
@@ -126,7 +126,7 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
           const Icon(Icons.psychology_alt_rounded, size: 48, color: Colors.deepPurple),
           const SizedBox(height: 16),
           const Text(
-            'Talk safely with Sikizwa AI',
+            'Talk safely with Sikizwa Care',
             style: TextStyle(fontSize: 24, fontWeight: FontWeight.w700),
           ),
           const SizedBox(height: 8),

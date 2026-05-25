@@ -9,6 +9,12 @@ class HomeScreen extends StatelessWidget {
     final theme = Theme.of(context);
 
     return Scaffold(
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () => context.go('/emergency'),
+        backgroundColor: Colors.redAccent,
+        icon: const Icon(Icons.warning_amber_rounded),
+        label: const Text('Emergency SOS'),
+      ),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
@@ -33,9 +39,17 @@ class HomeScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: 14),
                   _ActionCard(
-                    title: 'Create a new report',
-                    description: 'Record what is happening in a guided, calm flow that stays easy to complete.',
-                    actionLabel: 'Start a report',
+                    title: 'Report a problem',
+                    description: 'Share what is happening safely and get support when you need it most.',
+                    actionLabel: 'Report a problem',
+                    onTap: () => context.go('/reports'),
+                    variant: _ActionVariant.primary,
+                  ),
+                  const SizedBox(height: 14),
+                  _ActionCard(
+                    title: 'GBV support',
+                    description: 'Find safe guidance and resources for gender-based violence concerns.',
+                    actionLabel: 'Open GBV support',
                     onTap: () => context.go('/reports'),
                     variant: _ActionVariant.primary,
                   ),
@@ -51,9 +65,9 @@ class HomeScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: 14),
                   _ActionCard(
-                    title: 'Talk to Sikizwa AI',
+                    title: 'Talk to Sikizwa Care',
                     description: 'Get thoughtful guidance and a calm companion for your next step in the moment.',
-                    actionLabel: 'Open AI chat',
+                    actionLabel: 'Open chat',
                     onTap: () => context.go('/ai-chat'),
                     variant: _ActionVariant.soft,
                   ),
@@ -115,7 +129,7 @@ class _HeroSection extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Sikizwa Home',
+                    'Sikizwa Care',
                     style: theme.textTheme.titleMedium?.copyWith(
                       color: Colors.white70,
                       letterSpacing: 0.4,
@@ -155,7 +169,7 @@ class _HeroSection extends StatelessWidget {
               ),
               const SizedBox(height: 10),
               Text(
-                'Voice reporting, wellness support, and quick help are all designed to feel calm, clear, and emotionally supportive.',
+                'Voice reporting, wellness resources, and rapid help are all designed to feel calm, clear, and emotionally supportive.',
                 style: TextStyle(
                   color: Colors.white.withOpacity(0.88),
                   fontSize: 15,

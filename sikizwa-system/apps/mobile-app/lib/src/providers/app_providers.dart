@@ -1,6 +1,9 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../config/app_config.dart';
 import '../services/api_service.dart';
+import '../services/ble_service.dart';
+import '../services/emergency_sos_service.dart';
+import '../services/pendant_connection_manager.dart';
 import '../services/secure_storage_service.dart';
 
 final secureStorageProvider = Provider<SecureStorageService>((ref) => SecureStorageService());
@@ -22,5 +25,22 @@ final aiApiServiceProvider = Provider<ApiService>((ref) {
     storage: storage,
     enableAuth: true,
     enableCsrf: true,
+  );
+});
+
+final bleServiceProvider = Provider<BLEService>((ref) => BLEService());
+
+final emergencySOSServiceProvider = Provider<EmergencySOSService>((ref) {
+  final api = ref.read(apiServiceProvider);
+  final storage = ref.read(secureStorageProvider);
+  return EmergencySOSService(api: api, storage: storage);
+});
+
+final pendantConnectionManagerProvider = Provider<PendantConnectionManager>((ref) {
+  final bleService = ref.read(bleServiceProvider);
+  final sosService = ref.read(emergencySOSServiceProvider);
+  return PendantConnectionManager(
+    bleService: bleService,
+    sosService: sosService,
   );
 });

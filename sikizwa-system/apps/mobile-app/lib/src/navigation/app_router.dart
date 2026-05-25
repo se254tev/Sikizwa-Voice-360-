@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../features/ai/presentation/ai_chat_screen.dart';
@@ -6,6 +7,7 @@ import '../features/auth/pairing_screen.dart';
 import '../features/auth/register_screen.dart';
 import '../features/emergency/emergency_screen.dart';
 import '../features/home/home_screen.dart';
+import '../features/pendant/pendant_pairing_screen.dart';
 import '../features/reports/report_list_screen.dart';
 import '../features/settings/settings_screen.dart';
 import '../features/wellness/wellness_screen.dart';
@@ -25,6 +27,10 @@ class AppRouter {
         GoRoute(
           path: '/pairing/generate',
           builder: (ctx, state) => const PairingScreen(mode: PairingMode.generate),
+        ),
+        GoRoute(
+          path: '/pendant-pairing',
+          builder: (ctx, state) => const PendantPairingScreen(),
         ),
         StatefulShellRoute.indexedStack(
           builder: (context, state, navigationShell) {

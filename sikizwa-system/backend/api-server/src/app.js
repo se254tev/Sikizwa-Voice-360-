@@ -23,7 +23,9 @@ const learningResourcesRoutes = require('./routes/learningResources');
 const safeSpacesRoutes = require('./routes/safeSpaces');
 const distressSignalsRoutes = require('./routes/distressSignals');
 const distressSignalsAdminRoutes = require('./routes/distressSignalsAdmin');
+const pendantEmergencyRoutes = require('./routes/pendantEmergency');
 const deviceRoutes = require('./routes/device');
+const userRoutes = require('./routes/user');
 const logger = require('./config/logger');
 const { ApiError } = require('./utils/apiError');
 const { NOT_FOUND_ERRORS } = require('./utils/errorMessages');
@@ -37,10 +39,23 @@ const app = express();
 // Trust the ingress proxy so req.ip reflects the real client address.
 app.set('trust proxy', 1);
 
-const allowedOrigins = ['https://sikizwa-voice-360.vercel.app'];
+const allowedOrigins = [
+  'https://sikizwa-voice-360.vercel.app',
+  'http://localhost:3000',
+  'http://localhost:5173',
+  'http://127.0.0.1:5173',
+  'http://localhost:8080',
+];
+
+const extraOrigins = typeof process.env.CORS_ORIGINS === 'string'
+  ? process.env.CORS_ORIGINS.split(',').map((origin) => origin.trim()).filter(Boolean)
+  : [];
+
+const corsOrigins = Array.from(new Set([...allowedOrigins, ...extraOrigins]));
+
 const corsOptions = {
   origin: function (origin, callback) {
-    if (!origin || allowedOrigins.includes(origin)) {
+    if (!origin || corsOrigins.includes(origin)) {
       callback(null, true);
       return;
     }
@@ -171,7 +186,9 @@ app.use('/api/safe-spaces', safeSpacesRoutes);
 app.use('/api/analytics', analyticsRoutes);
 app.use('/api/distress-signal', distressSignalsRoutes);
 app.use('/api/distress-signals', distressSignalsAdminRoutes);
+app.use('/api/emergency', pendantEmergencyRoutes);
 app.use('/api/device', deviceRoutes);
+app.use('/api/user', userRoutes);
 
 app.get('/health', (req, res) => {
   logger.info('Health check satisfied', {
