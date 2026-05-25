@@ -20,4 +20,10 @@ const adminLoginSchema = Joi.object({
   }).unknown(true),
 });
 
-module.exports = { adminSignupSchema, adminLoginSchema };
+const reportStatusSchema = Joi.object({
+  body: Joi.object({
+    status: Joi.string().valid('pending','open','in-progress','resolved','closed','escalated').required(),
+  }).unknown(true),
+});
+
+module.exports = { adminSignupSchema, adminLoginSchema, reportStatusSchema };

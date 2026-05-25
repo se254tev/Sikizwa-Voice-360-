@@ -35,6 +35,16 @@ export async function fetchReports() {
   return Array.isArray(res.data?.data?.items) ? res.data.data.items : [];
 }
 
+export async function updateReportStatus(reportId: string, status: string) {
+  const res = await api.patch(`/admin/reports/${reportId}/status`, { status });
+  return res.data;
+}
+
+export async function deleteReport(reportId: string) {
+  const res = await api.delete(`/admin/reports/${reportId}`);
+  return res.data;
+}
+
 export async function fetchEmergencies() {
   const res = await api.get('/emergencies');
   return res.data;

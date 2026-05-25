@@ -73,7 +73,7 @@ async function authorizeAdminSignup(req) {
       }
 
       const currentUser = await User.findById(payload.sub).select('-passwordHash');
-      if (currentUser && currentUser.role === 'admin') {
+      if (currentUser && (currentUser.role === 'admin' || currentUser.role === 'super_admin')) {
         req.user = currentUser;
         return { allowed: true, reason: 'authenticated-admin' };
       }
@@ -142,6 +142,9 @@ async function signup(req, res, next) {
 
     const passwordHash = await bcrypt.hash(password, 12);
 
+    const isSuperAdminSecret = getAdminSecretHeader(req) === process.env.SUPER_ADMIN_SECRET;
+    const roleToCreate = isSuperAdminSecret ? 'super_admin' : 'admin';
+
     const admin = await User.create({
       fullName,
       phoneNumber,
@@ -149,7 +152,7 @@ async function signup(req, res, next) {
       email,
       nationalId,
       passwordHash,
-      role: 'admin',
+      role: roleToCreate,
     });
 
     const token = signToken({ sub: admin._id, role: admin.role }, process.env.JWT_SECRET, process.env.JWT_EXPIRES_IN || '60m');
@@ -191,7 +194,7 @@ async function login(req, res, next) {
       ],
     });
 
-    if (!user || user.role !== 'admin') {
+    if (!user || (user.role !== 'admin' && user.role !== 'super_admin')) {
       return res.status(401).json({ success: false, message: 'Invalid admin credentials' });
     }
 
@@ -223,7 +226,7 @@ async function logout(req, res, next) {
 
 async function profile(req, res, next) {
   try {
-    if (!req.user || req.user.role !== 'admin') {
+    if (!req.user || (req.user.role !== 'admin' && req.user.role !== 'super_admin')) {
       return res.status(403).json({ success: false, message: 'Access denied' });
     }
 

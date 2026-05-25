@@ -37,7 +37,7 @@ class AppBottomNavigationBar extends StatelessWidget {
             NavigationDestination(
               icon: Icon(Icons.self_improvement_outlined),
               selectedIcon: Icon(Icons.self_improvement),
-              label: 'Wellness',
+              label: 'About GBV',
             ),
             NavigationDestination(
               icon: Icon(Icons.support_agent_outlined),

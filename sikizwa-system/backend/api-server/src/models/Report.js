@@ -4,21 +4,39 @@ const { Schema } = mongoose;
 const reportSchema = new Schema({
   reporterAnonId: { type: String, index: true },
   reporterUser: { type: Schema.Types.ObjectId, ref: 'User' },
-  type: { type: String, enum: ['gbv','depression','suicide','bullying','corruption','insecurity','drug','harassment'], required: true, index: true },
-  title: { type: String },
-  description: { type: String },
-  emotional_summary: { type: String },
-  mood_status: { type: String },
+  type: {
+    type: String,
+    enum: ['gbv','depression','suicide','bullying','corruption','insecurity','drug','harassment','support','general'],
+    required: true,
+    index: true,
+    default: 'support',
+  },
+  reportType: { type: String, trim: true, default: 'problem', index: true },
+  incidentType: { type: String, trim: true },
+  title: { type: String, trim: true },
+  description: { type: String, trim: true },
+  emotional_summary: { type: String, trim: true },
+  mood_status: { type: String, trim: true },
   media: [{ url: String, type: String }],
-  location: { type: { type: String, enum: ['Point'], default: 'Point' }, coordinates: [Number] },
+  location: { type: String, trim: true, default: '' },
+  anonymousSubmission: { type: Boolean, default: false, index: true },
+  priority: { type: String, enum: ['low','medium','high'], default: 'medium', index: true },
+  timestamp: { type: Date, default: Date.now },
   emotionAnalysis: { type: Schema.Types.ObjectId, ref: 'EmotionalAnalysis' },
   riskLevel: { type: String, enum: ['low','medium','high','emergency'], default: 'low', index: true },
-  status: { type: String, enum: ['open','in-progress','closed'], default: 'open' },
+  status: {
+    type: String,
+    enum: ['pending','open','in-progress','resolved','closed','escalated'],
+    default: 'pending',
+    index: true,
+  },
+  isDeleted: { type: Boolean, default: false, index: true },
+  deletedAt: { type: Date },
+  deletedBy: { type: Schema.Types.ObjectId, ref: 'User' },
   createdAt: { type: Date, default: Date.now }
 });
 
-reportSchema.index({ location: '2dsphere' });
+reportSchema.index({ location: 1 });
 reportSchema.index({ reporterUser: 1 });
 reportSchema.index({ createdAt: -1 });
-reportSchema.index({ status: 1 });
 module.exports = mongoose.model('Report', reportSchema);

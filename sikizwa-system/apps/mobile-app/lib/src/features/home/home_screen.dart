@@ -12,8 +12,8 @@ class HomeScreen extends StatelessWidget {
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => context.go('/emergency'),
         backgroundColor: Colors.redAccent,
-        icon: const Icon(Icons.warning_amber_rounded),
-        label: const Text('Emergency SOS'),
+        icon: const Icon(Icons.add_alert_rounded),
+        label: const Text('Alert'),
       ),
       body: SafeArea(
         child: SingleChildScrollView(
@@ -31,9 +31,9 @@ class HomeScreen extends StatelessWidget {
                   _SectionHeader(title: 'Immediate support'),
                   const SizedBox(height: 12),
                   _ActionCard(
-                    title: 'Emergency response',
+                    title: 'Alert response',
                     description: 'Reach help quickly and share your current situation with confidence.',
-                    actionLabel: 'Open emergency support',
+                    actionLabel: 'Open alert support',
                     onTap: () => context.go('/emergency'),
                     variant: _ActionVariant.urgent,
                   ),
@@ -57,10 +57,10 @@ class HomeScreen extends StatelessWidget {
                   _SectionHeader(title: 'Care and guidance'),
                   const SizedBox(height: 12),
                   _ActionCard(
-                    title: 'Emotional wellness',
-                    description: 'Drop into calming routines and supportive practices whenever you need a reset.',
-                    actionLabel: 'Explore wellness',
-                    onTap: () => context.go('/wellness'),
+                    title: 'About GBV',
+                    description: 'Explore GBV guidance, survivor rights, and how to reach trusted support services.',
+                    actionLabel: 'Open GBV information',
+                    onTap: () => context.push('/wellness'),
                     variant: _ActionVariant.calm,
                   ),
                   const SizedBox(height: 14),
@@ -68,7 +68,7 @@ class HomeScreen extends StatelessWidget {
                     title: 'Talk to Sikizwa Care',
                     description: 'Get thoughtful guidance and a calm companion for your next step in the moment.',
                     actionLabel: 'Open chat',
-                    onTap: () => context.go('/ai-chat'),
+                    onTap: () => context.push('/ai-chat'),
                     variant: _ActionVariant.soft,
                   ),
                 ],

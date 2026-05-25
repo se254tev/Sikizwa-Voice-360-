@@ -44,7 +44,8 @@ const userSchema = new Schema(
   {
     name: { type: String, trim: true },
     fullName: { type: String, trim: true },
-    role: { type: String, enum: ['user', 'counsellor', 'admin', 'responder', 'other'], default: 'other', index: true },
+    role: { type: String, enum: ['user', 'counsellor', 'admin', 'super_admin', 'responder', 'other'], default: 'other', index: true },
+    permissions: [{ type: String }],
     anonymousId: { type: String },
     username: { type: String, trim: true },
     passwordHash: { type: String },

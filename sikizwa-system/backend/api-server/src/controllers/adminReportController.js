@@ -1,4 +1,5 @@
 const Report = require('../models/Report');
+const AuditLog = require('../models/AuditLog');
 const logger = require('../config/logger');
 const { buildSuccessResponse } = require('../utils/responseHelpers');
 
@@ -16,7 +17,7 @@ async function listAdminReports(req, res, next) {
       : 'createdAt';
     const sortOrder = req.query.sortOrder === 'asc' ? 1 : -1;
 
-    const filters = {};
+    const filters = { isDeleted: false };
     if (typeof req.query.status === 'string' && req.query.status.trim().length > 0) {
       filters.status = req.query.status.trim();
     }
@@ -81,6 +82,79 @@ async function listAdminReports(req, res, next) {
   }
 }
 
+async function updateReportStatus(req, res, next) {
+  try {
+    const reportId = req.params.id;
+    const status = typeof req.body.status === 'string' ? req.body.status.trim() : null;
+    if (!status) {
+      return res.status(400).json({ success: false, message: 'Status is required.' });
+    }
+
+    const report = await Report.findById(reportId);
+    if (!report) {
+      return res.status(404).json({ success: false, message: 'Report not found.' });
+    }
+
+    const previousStatus = report.status;
+    report.status = status;
+    await report.save();
+
+    await AuditLog.create({
+      actor: req.user?._id,
+      actorAnonId: req.user?.anonymousId,
+      action: 'update_report_status',
+      resource: 'Report',
+      resourceId: report._id,
+      ip: req.ip,
+      meta: {
+        previousStatus,
+        newStatus: report.status,
+      },
+    });
+
+    return res.json({ success: true, message: 'Report status updated.', data: { id: String(report._id), status: report.status } });
+  } catch (err) {
+    logger.error('Update report status failed', { adminId: req.user?._id?.toString(), error: err.message });
+    return next(err);
+  }
+}
+
+async function deleteReport(req, res, next) {
+  try {
+    const reportId = req.params.id;
+    const report = await Report.findById(reportId);
+    if (!report) {
+      return res.status(404).json({ success: false, message: 'Report not found.' });
+    }
+
+    if (report.isDeleted) {
+      return res.status(400).json({ success: false, message: 'Report already deleted.' });
+    }
+
+    report.isDeleted = true;
+    report.deletedAt = new Date();
+    report.deletedBy = req.user?._id;
+    await report.save();
+
+    await AuditLog.create({
+      actor: req.user?._id,
+      actorAnonId: req.user?.anonymousId,
+      action: 'delete_report',
+      resource: 'Report',
+      resourceId: report._id,
+      ip: req.ip,
+      meta: { status: report.status, incidentType: report.incidentType },
+    });
+
+    return res.json({ success: true, message: 'Report deleted.', data: { id: String(report._id) } });
+  } catch (err) {
+    logger.error('Delete report failed', { adminId: req.user?._id?.toString(), error: err.message });
+    return next(err);
+  }
+}
+
 module.exports = {
   listAdminReports,
+  updateReportStatus,
+  deleteReport,
 };

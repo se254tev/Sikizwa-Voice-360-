@@ -3,8 +3,8 @@ const rateLimit = require('express-rate-limit');
 const adminController = require('../controllers/adminController');
 const adminReportController = require('../controllers/adminReportController');
 const validate = require('../middleware/validate');
-const { verifyAdminToken, requireAdminRole } = require('../middleware/auth');
-const { adminSignupSchema, adminLoginSchema } = require('../validators/adminValidator');
+const { verifyAdminToken, requireAdminRole, requireSuperAdmin } = require('../middleware/auth');
+const { adminSignupSchema, adminLoginSchema, reportStatusSchema } = require('../validators/adminValidator');
 
 const router = express.Router();
 
@@ -21,5 +21,7 @@ router.post('/login', adminLoginLimiter, validate(adminLoginSchema), adminContro
 router.post('/logout', verifyAdminToken, requireAdminRole('admin'), adminController.logout);
 router.get('/profile', verifyAdminToken, requireAdminRole('admin'), adminController.profile);
 router.get('/reports', verifyAdminToken, requireAdminRole('admin'), adminReportController.listAdminReports);
+router.patch('/reports/:id/status', verifyAdminToken, requireAdminRole('admin'), validate(reportStatusSchema), adminReportController.updateReportStatus);
+router.delete('/reports/:id', verifyAdminToken, requireSuperAdmin, adminReportController.deleteReport);
 
 module.exports = router;

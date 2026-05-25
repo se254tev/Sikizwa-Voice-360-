@@ -33,7 +33,38 @@ function requireRole(role) {
       return res.status(403).json({ error: 'forbidden' });
     }
 
-    if (req.user.role !== role) {
+    const allowedRoles = Array.isArray(role) ? role : [role];
+    const normalizedRoles = new Set();
+
+    allowedRoles.forEach((allowedRole) => {
+      if (allowedRole === 'admin') {
+        normalizedRoles.add('admin');
+        normalizedRoles.add('super_admin');
+      } else {
+        normalizedRoles.add(allowedRole);
+      }
+    });
+
+    if (!normalizedRoles.has(req.user.role)) {
+      return res.status(403).json({ error: 'forbidden' });
+    }
+
+    next();
+  };
+}
+
+function requirePermission(permission) {
+  return (req, res, next) => {
+    if (!req.user) {
+      return res.status(403).json({ error: 'forbidden' });
+    }
+
+    if (req.user.role === 'super_admin') {
+      return next();
+    }
+
+    const permissions = Array.isArray(req.user.permissions) ? req.user.permissions : [];
+    if (!permissions.includes(permission)) {
       return res.status(403).json({ error: 'forbidden' });
     }
 
@@ -43,5 +74,6 @@ function requireRole(role) {
 
 const verifyAdminToken = requireAuth;
 const requireAdminRole = requireRole;
+const requireSuperAdmin = requireRole('super_admin');
 
-module.exports = { requireAuth, requireRole, verifyAdminToken, requireAdminRole };
+module.exports = { requireAuth, requireRole, requirePermission, verifyAdminToken, requireAdminRole, requireSuperAdmin };

@@ -1,13 +1,109 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../providers/app_providers.dart';
 import 'reports_provider.dart';
 
-class ReportListScreen extends ConsumerWidget {
+class ReportListScreen extends ConsumerStatefulWidget {
   const ReportListScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<ReportListScreen> createState() => _ReportListScreenState();
+}
+
+class _ReportListScreenState extends ConsumerState<ReportListScreen> with SingleTickerProviderStateMixin {
+  final _formKey = GlobalKey<FormState>();
+  final _locationController = TextEditingController();
+  final _descriptionController = TextEditingController();
+  String _priority = 'medium';
+  bool _anonymousSubmission = false;
+  bool _isSubmitting = false;
+  bool _reportForMe = true;
+  String _selectedIncidentType = 'Physical Violence';
+  String? _submitError;
+
+  static const _incidentOptions = [
+    'Physical Violence',
+    'Sexual Violence',
+    'Emotional Abuse',
+    'Economic Abuse',
+    'Child Abuse',
+    'Domestic Violence',
+    'Harassment',
+    'Stalking',
+    'Forced Marriage',
+    'Human Trafficking',
+    'Online Abuse',
+    'Other',
+  ];
+
+  int get _descriptionLength => _descriptionController.text.trim().length;
+  static const _descriptionMaxLength = 500;
+
+  @override
+  void initState() {
+    super.initState();
+    _descriptionController.addListener(() {
+      setState(() {});
+    });
+  }
+
+  @override
+  void dispose() {
+    _locationController.dispose();
+    _descriptionController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submitReport() async {
+    if (!_formKey.currentState!.validate()) {
+      return;
+    }
+
+    setState(() {
+      _isSubmitting = true;
+      _submitError = null;
+    });
+
+    try {
+      final api = ref.read(apiServiceProvider);
+      await api.post('/api/reports', data: {
+        'reportType': 'problem',
+        'incidentType': _selectedIncidentType,
+        'reportedFor': _reportForMe ? 'me' : 'someone_else',
+        'description': _descriptionController.text.trim(),
+        'location': _locationController.text.trim(),
+        'anonymousSubmission': _anonymousSubmission,
+        'priority': _priority,
+      });
+
+      ref.invalidate(reportsProvider);
+
+      _locationController.clear();
+      _descriptionController.clear();
+      setState(() {
+        _priority = 'medium';
+        _anonymousSubmission = false;
+        _selectedIncidentType = 'Physical Violence';
+        _reportForMe = true;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Report submitted successfully.')),
+      );
+    } catch (error) {
+      setState(() {
+        _submitError = error.toString();
+      });
+    } finally {
+      setState(() {
+        _isSubmitting = false;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final reportsAsync = ref.watch(reportsProvider);
     final theme = Theme.of(context);
 
@@ -48,6 +144,26 @@ class ReportListScreen extends ConsumerWidget {
                     theme: theme,
                   ),
                   const SizedBox(height: 16),
+                  _ReportSubmissionForm(
+                    formKey: _formKey,
+                    reportForMe: _reportForMe,
+                    onReportForChanged: (value) => setState(() => _reportForMe = value),
+                    incidentOptions: _incidentOptions,
+                    selectedIncidentType: _selectedIncidentType,
+                    onIncidentTypeChanged: (value) => setState(() => _selectedIncidentType = value),
+                    locationController: _locationController,
+                    descriptionController: _descriptionController,
+                    descriptionLength: _descriptionLength,
+                    descriptionMaxLength: _descriptionMaxLength,
+                    priority: _priority,
+                    anonymousSubmission: _anonymousSubmission,
+                    isSubmitting: _isSubmitting,
+                    submitError: _submitError,
+                    onPriorityChanged: (value) => setState(() => _priority = value),
+                    onAnonymousChanged: (value) => setState(() => _anonymousSubmission = value),
+                    onSubmit: _submitReport,
+                  ),
+                  const SizedBox(height: 16),
                   Expanded(
                     child: reports.isEmpty
                         ? _EmptyReportState(theme: theme)
@@ -63,6 +179,172 @@ class ReportListScreen extends ConsumerWidget {
                 ],
               );
             },
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ReportSubmissionForm extends StatelessWidget {
+  const _ReportSubmissionForm({
+    required this.formKey,
+    required this.reportForMe,
+    required this.onReportForChanged,
+    required this.incidentOptions,
+    required this.selectedIncidentType,
+    required this.onIncidentTypeChanged,
+    required this.locationController,
+    required this.descriptionController,
+    required this.descriptionLength,
+    required this.descriptionMaxLength,
+    required this.priority,
+    required this.anonymousSubmission,
+    required this.isSubmitting,
+    required this.submitError,
+    required this.onPriorityChanged,
+    required this.onAnonymousChanged,
+    required this.onSubmit,
+  });
+
+  final GlobalKey<FormState> formKey;
+  final bool reportForMe;
+  final ValueChanged<bool> onReportForChanged;
+  final List<String> incidentOptions;
+  final String selectedIncidentType;
+  final ValueChanged<String> onIncidentTypeChanged;
+  final TextEditingController locationController;
+  final TextEditingController descriptionController;
+  final int descriptionLength;
+  final int descriptionMaxLength;
+  final String priority;
+  final bool anonymousSubmission;
+  final bool isSubmitting;
+  final String? submitError;
+  final ValueChanged<String> onPriorityChanged;
+  final ValueChanged<bool> onAnonymousChanged;
+  final VoidCallback onSubmit;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Card(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+      child: Padding(
+        padding: const EdgeInsets.all(18),
+        child: Form(
+          key: formKey,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text('Submit a new problem report', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800)),
+              const SizedBox(height: 16),
+              ToggleButtons(
+                isSelected: [reportForMe, !reportForMe],
+                onPressed: (index) => onReportForChanged(index == 0),
+                borderRadius: BorderRadius.circular(16),
+                selectedColor: theme.colorScheme.onPrimary,
+                fillColor: theme.colorScheme.primary,
+                color: theme.colorScheme.onSurface,
+                constraints: const BoxConstraints(minHeight: 44, minWidth: 140),
+                children: const [
+                  Text('Report for Me'),
+                  Text('Report for Someone Else'),
+                ],
+              ),
+              const SizedBox(height: 16),
+              DropdownButtonFormField<String>(
+                value: selectedIncidentType,
+                decoration: const InputDecoration(labelText: 'Type of incident'),
+                items: incidentOptions
+                    .map((option) => DropdownMenuItem(value: option, child: Text(option)))
+                    .toList(),
+                onChanged: (value) {
+                  if (value != null) {
+                    onIncidentTypeChanged(value);
+                  }
+                },
+                validator: (value) => value?.trim().isEmpty == true ? 'Please select a type of incident.' : null,
+              ),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: locationController,
+                decoration: const InputDecoration(
+                  labelText: 'Location',
+                  hintText: 'Where did this happen? (optional)',
+                ),
+                maxLines: 2,
+                textInputAction: TextInputAction.newline,
+              ),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: descriptionController,
+                decoration: InputDecoration(
+                  labelText: 'Describe the incident',
+                  hintText: 'Share the details, who was involved, and what happened.',
+                  alignLabelWithHint: true,
+                  helperText: 'Minimum 15 characters',
+                  counterText: '$descriptionLength / $descriptionMaxLength',
+                ),
+                minLines: 4,
+                maxLines: 6,
+                maxLength: descriptionMaxLength,
+                validator: (value) {
+                  final trimmed = value?.trim() ?? '';
+                  if (trimmed.isEmpty) {
+                    return 'Please describe the incident.';
+                  }
+                  if (trimmed.length < 15) {
+                    return 'Please provide a longer description (at least 15 characters).';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: DropdownButtonFormField<String>(
+                      value: priority,
+                      decoration: const InputDecoration(labelText: 'Priority'),
+                      items: const [
+                        DropdownMenuItem(value: 'low', child: Text('Low')),
+                        DropdownMenuItem(value: 'medium', child: Text('Medium')),
+                        DropdownMenuItem(value: 'high', child: Text('High')),
+                      ],
+                      onChanged: onPriorityChanged,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: SwitchListTile(
+                      value: anonymousSubmission,
+                      onChanged: onAnonymousChanged,
+                      title: const Text('Submit anonymously'),
+                      contentPadding: EdgeInsets.zero,
+                    ),
+                  ),
+                ],
+              ),
+              if (submitError != null) ...[
+                const SizedBox(height: 12),
+                Text(submitError!, style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.error)),
+              ],
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton(
+                  onPressed: isSubmitting ? null : onSubmit,
+                  child: isSubmitting
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Text('Submit report'),
+                ),
+              ),
+            ],
           ),
         ),
       ),

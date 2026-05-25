@@ -6,7 +6,7 @@ const registerSchema = Joi.object({
     phone: Joi.string().pattern(/^\+?[0-9]{7,15}$/).required(),
     password: Joi.string().min(8).required(),
     email: Joi.string().email().optional().allow(''),
-    role: Joi.string().valid('user', 'counsellor', 'admin', 'responder', 'other').default('other'),
+    role: Joi.string().valid('user', 'counsellor', 'admin', 'super_admin', 'responder', 'other').default('other'),
     emergencyContacts: Joi.array().items(
       Joi.object({
         name: Joi.string().min(2).required(),

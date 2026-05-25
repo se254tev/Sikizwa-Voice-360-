@@ -13,3 +13,4 @@
 {"level":"info","message":"Environment: development","service":"sikizwa-api","timestamp":"2026-05-24 18:24:31"}
 {"level":"info","message":"Redis URL: not configured","service":"sikizwa-api","timestamp":"2026-05-24 18:24:31"}
 {"hasAuthorization":false,"level":"debug","message":"CSRF protection skipped for route","origin":null,"path":"/api/admin/signup","service":"sikizwa-api","timestamp":"2026-05-24 18:26:55"}
+{"error":"User.find(...).select is not a function","level":"error","message":"Failed to notify admins about newly created report","reportId":"6847b6b6c09fa12f0d83a1dd","service":"sikizwa-api","timestamp":"2026-05-25 21:44:51"}

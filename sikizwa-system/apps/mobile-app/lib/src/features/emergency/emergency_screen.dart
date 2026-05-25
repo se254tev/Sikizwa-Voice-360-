@@ -17,10 +17,12 @@ class EmergencyScreen extends ConsumerStatefulWidget {
   ConsumerState<EmergencyScreen> createState() => _EmergencyScreenState();
 }
 
-class _EmergencyScreenState extends ConsumerState<EmergencyScreen> {
+class _EmergencyScreenState extends ConsumerState<EmergencyScreen> with SingleTickerProviderStateMixin {
   bool _isSending = false;
   late final EmergencySOSService _sosService;
   late final PendantConnectionManager _pendantManager;
+  late final AnimationController _pulseController;
+  late final Animation<double> _pulseAnimation;
 
   EmergencyActionService get _service => EmergencyActionService(
         api: ref.read(apiServiceProvider),
@@ -33,6 +35,21 @@ class _EmergencyScreenState extends ConsumerState<EmergencyScreen> {
     _sosService = ref.read(emergencySOSServiceProvider);
     _pendantManager = ref.read(pendantConnectionManagerProvider);
     _pendantManager.initialize();
+
+    _pulseController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1200),
+    )..repeat(reverse: true);
+
+    _pulseAnimation = Tween<double>(begin: 0.98, end: 1.06).animate(
+      CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
+    );
+  }
+
+  @override
+  void dispose() {
+    _pulseController.dispose();
+    super.dispose();
   }
 
   Future<void> _sendDistressSignal() async {
@@ -120,32 +137,46 @@ class _EmergencyScreenState extends ConsumerState<EmergencyScreen> {
             return Stack(
               children: [
                 Scaffold(
-                  appBar: AppBar(title: const Text('Emergency Response')),
+                  appBar: AppBar(title: const Text('Alert')),
                   body: Padding(
                     padding: const EdgeInsets.all(16),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
                         const Text(
-                          'Emergency support',
+                          'Alert support',
                           style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
                         ),
                         const SizedBox(height: 16),
                         const Text(
-                          'Send a distress signal, call your saved contact, or reach the national emergency numbers in Kenya.',
+                          'Send an alert, call your saved contact, or reach the national emergency numbers in Kenya.',
                         ),
                         const SizedBox(height: 16),
                         BLEStatusIndicator(status: pendantStatus),
                         const SizedBox(height: 24),
-                        ElevatedButton(
-                          onPressed: _isSending ? null : _sendDistressSignal,
-                          child: _isSending
-                              ? const SizedBox(
-                                  width: 20,
-                                  height: 20,
-                                  child: CircularProgressIndicator(strokeWidth: 2),
-                                )
-                              : const Text('Send emergency alert'),
+                        ScaleTransition(
+                          scale: _pulseAnimation,
+                          child: Container(
+                            decoration: BoxDecoration(
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Theme.of(context).colorScheme.primary.withOpacity(0.22),
+                                  blurRadius: 22,
+                                  spreadRadius: 2,
+                                ),
+                              ],
+                            ),
+                            child: ElevatedButton(
+                              onPressed: _isSending ? null : _sendDistressSignal,
+                              child: _isSending
+                                  ? const SizedBox(
+                                      width: 20,
+                                      height: 20,
+                                      child: CircularProgressIndicator(strokeWidth: 2),
+                                    )
+                                  : const Text('Send alert'),
+                            ),
+                          ),
                         ),
                         const SizedBox(height: 12),
                         ElevatedButton(
