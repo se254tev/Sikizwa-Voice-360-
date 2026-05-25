@@ -1,7 +1,7 @@
 const User = require('../models/User');
 const { normalizeUserPreferences, getUserPreferences } = require('../utils/settings');
 const { buildSuccessResponse } = require('../utils/responseHelpers');
-const { ApiError } = require('../utils/ApiError');
+const { ApiError } = require('../utils/apiError');
 
 async function getUserPreferencesHandler(req, res, next) {
   try {

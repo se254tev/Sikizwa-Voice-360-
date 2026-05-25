@@ -1,6 +1,6 @@
 const User = require('../models/User');
 const logger = require('../config/logger');
-const { ApiError } = require('../utils/ApiError');
+const { ApiError } = require('../utils/apiError');
 const { buildSuccessResponse, requireField } = require('../utils/responseHelpers');
 
 async function registerTrustedPendant(req, res, next) {

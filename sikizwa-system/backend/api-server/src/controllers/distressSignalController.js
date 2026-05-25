@@ -2,7 +2,7 @@ const mongoose = require('mongoose');
 const DistressSignal = require('../models/DistressSignal');
 const { getSocket } = require('../utils/socketRegistry');
 const { buildSuccessResponse, buildFailureResponse } = require('../utils/responseHelpers');
-const { ApiError } = require('../utils/ApiError');
+const { ApiError } = require('../utils/apiError');
 
 function invalid(message, status = 400) {
   const error = new Error(message);
