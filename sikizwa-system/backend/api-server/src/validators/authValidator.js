@@ -1,42 +1,52 @@
 const Joi = require('joi');
 
+const passwordPattern = /^(?=.*[A-Za-z])(?=.*\d).{8,}$/;
+
 const registerSchema = Joi.object({
   body: Joi.object({
-    fullName: Joi.string().min(2).max(120).required(),
-    phone: Joi.string().pattern(/^\+?[0-9]{7,15}$/).required(),
-    password: Joi.string().min(8).required(),
-    email: Joi.string().email().optional().allow(''),
+    fullName: Joi.string().trim().min(2).max(120).required(),
+    phone: Joi.string().trim().pattern(/^\+?[0-9]{7,15}$/).required(),
+    password: Joi.string().trim().min(8).pattern(passwordPattern).required(),
     role: Joi.string().valid('user', 'counsellor', 'admin', 'super_admin', 'responder', 'other').default('other'),
-    emergencyContacts: Joi.array().items(
-      Joi.object({
-        name: Joi.string().min(2).required(),
-        phone: Joi.string().pattern(/^\+?[0-9]{7,15}$/).required(),
-        relationship: Joi.string().min(2).required(),
-        type: Joi.string().valid('personal', 'professional', 'guardian').default('personal'),
-      })
-    ).min(1).required(),
-    bloodGroup: Joi.string().max(10).optional().allow(''),
-    allergies: Joi.string().max(240).optional().allow(''),
-    medicalConditions: Joi.string().max(240).optional().allow(''),
-    location: Joi.string().max(120).optional().allow(''),
-    device_id: Joi.string().optional().allow(''),
+    device_id: Joi.string().trim().optional().allow(''),
     device_type: Joi.string().valid('phone', 'tablet', 'tv', 'watch').optional().allow(''),
-  }).unknown(true),
+  }).unknown(false),
 });
 
 const loginSchema = Joi.object({
   body: Joi.object({
-    identifier: Joi.string().min(3).max(128).required(),
-    password: Joi.string().min(8).required(),
-    device_id: Joi.string().optional().allow(''),
+    identifier: Joi.string().trim().pattern(/^\+?[0-9]{7,15}$/).required(),
+    password: Joi.string().trim().min(8).required(),
+    device_id: Joi.string().trim().optional().allow(''),
     device_type: Joi.string().valid('phone', 'tablet', 'tv', 'watch').optional().allow(''),
-  }).unknown(true),
+  }).unknown(false),
+});
+
+const forgotPasswordSchema = Joi.object({
+  body: Joi.object({
+    phone: Joi.string().trim().pattern(/^\+?[0-9]{7,15}$/).required(),
+  }).unknown(false),
+});
+
+const verifyOtpSchema = Joi.object({
+  body: Joi.object({
+    phone: Joi.string().trim().pattern(/^\+?[0-9]{7,15}$/).required(),
+    otp: Joi.string().trim().pattern(/^\d{6}$/).required(),
+  }).unknown(false),
+});
+
+const resetPasswordSchema = Joi.object({
+  body: Joi.object({
+    phone: Joi.string().trim().pattern(/^\+?[0-9]{7,15}$/).required(),
+    otp: Joi.string().trim().pattern(/^\d{6}$/).required(),
+    password: Joi.string().trim().min(8).pattern(passwordPattern).required(),
+  }).unknown(false),
 });
 
 const refreshSchema = Joi.object({
   body: Joi.object({
     token: Joi.string().required(),
-  }),
+  }).unknown(false),
 });
 
-module.exports = { registerSchema, loginSchema, refreshSchema };
+module.exports = { registerSchema, loginSchema, forgotPasswordSchema, verifyOtpSchema, resetPasswordSchema, refreshSchema };

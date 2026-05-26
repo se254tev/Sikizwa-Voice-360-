@@ -1,6 +1,13 @@
 const Joi = require('joi');
 
-function validate(schema) {
+function validate(schema, options = {}) {
+  const {
+    includeDetails = true,
+    failureMessage = 'The request data is invalid. Please review the provided values and try again.',
+    failureCode = 'VALIDATION_INVALID_PAYLOAD',
+    statusCode = 400,
+  } = options;
+
   return (req, res, next) => {
     const { error } = schema.validate(
       {
@@ -10,12 +17,17 @@ function validate(schema) {
     );
 
     if (error) {
-      return res.status(400).json({
+      const response = {
         success: false,
-        message: 'The request data is invalid. Please review the provided values and try again.',
-        errorCode: 'VALIDATION_INVALID_PAYLOAD',
-        details: error.details.map((detail) => detail.message),
-      });
+        message: failureMessage,
+        errorCode: failureCode,
+      };
+
+      if (includeDetails) {
+        response.details = error.details.map((detail) => detail.message);
+      }
+
+      return res.status(statusCode).json(response);
     }
 
     next();

@@ -159,7 +159,12 @@ class _ReportListScreenState extends ConsumerState<ReportListScreen> with Single
                     anonymousSubmission: _anonymousSubmission,
                     isSubmitting: _isSubmitting,
                     submitError: _submitError,
-                    onPriorityChanged: (value) => setState(() => _priority = value),
+                    onPriorityChanged: (value) {
+                      if (value == null) {
+                        return;
+                      }
+                      setState(() => _priority = value);
+                    },
                     onAnonymousChanged: (value) => setState(() => _anonymousSubmission = value),
                     onSubmit: _submitReport,
                   ),
@@ -221,7 +226,7 @@ class _ReportSubmissionForm extends StatelessWidget {
   final bool anonymousSubmission;
   final bool isSubmitting;
   final String? submitError;
-  final ValueChanged<String> onPriorityChanged;
+  final ValueChanged<String?> onPriorityChanged;
   final ValueChanged<bool> onAnonymousChanged;
   final VoidCallback onSubmit;
 

@@ -1,5 +1,7 @@
 const Notification = require('../models/Notification');
 const AuditLog = require('../models/AuditLog');
+const { ApiError } = require('../utils/apiError');
+const { NOT_FOUND_ERRORS } = require('../utils/errorMessages');
 
 async function listNotifications(req, res, next) {
   try {
@@ -17,7 +19,13 @@ async function markRead(req, res, next) {
       { read: true },
       { new: true }
     );
-    if (!notification) return res.status(404).json({ error: 'notification not found' });
+    if (!notification) {
+      throw new ApiError({
+        statusCode: 404,
+        message: NOT_FOUND_ERRORS.resourceNotFound.message,
+        errorCode: NOT_FOUND_ERRORS.resourceNotFound.errorCode,
+      });
+    }
     await AuditLog.create({
       actor: req.user._id,
       actorAnonId: req.user.anonymousId,

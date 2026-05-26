@@ -88,12 +88,20 @@ class _EmergencyScreenState extends ConsumerState<EmergencyScreen> with SingleTi
       }
       _showSnackBar('Opening your primary emergency contact.');
     } catch (error) {
-      _showSnackBar(formatError(error));
+      _showSnackBar(_formatPrimaryContactError(error));
     } finally {
       if (mounted) {
         setState(() => _isSending = false);
       }
     }
+  }
+
+  String _formatPrimaryContactError(Object error) {
+    if (error is StateError && error.message == 'No emergency contact is available.') {
+      return 'No contact found';
+    }
+
+    return formatError(error);
   }
 
   Future<void> _callEmergencyNumber(String number, String label) async {

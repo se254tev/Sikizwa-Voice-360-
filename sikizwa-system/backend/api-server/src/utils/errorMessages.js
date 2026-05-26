@@ -1,6 +1,6 @@
 const AUTH_ERRORS = {
   invalidCredentials: {
-    message: 'Invalid email or password.',
+    message: 'Invalid credentials',
     errorCode: 'AUTH_INVALID_CREDENTIALS',
   },
   tokenExpired: {

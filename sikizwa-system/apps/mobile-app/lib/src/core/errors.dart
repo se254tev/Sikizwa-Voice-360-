@@ -1,3 +1,5 @@
+import 'errors/auth_error_messages.dart';
+
 class ApiError {
   const ApiError({
     required this.statusCode,
@@ -35,7 +37,7 @@ class ApiException extends AppException {
     String? details,
   })  : statusCode = error?.statusCode ?? statusCode ?? 500,
         details = details ?? error?.details,
-        super(message ?? error?.message ?? 'Request failed. Please try again.');
+        super(message ?? error?.message ?? AuthErrorMessages.malformedRequest);
 
   final int statusCode;
   final String? details;
@@ -46,11 +48,11 @@ class ApiException extends AppException {
 
 String formatError(Object error) {
   if (error is AppException) {
-    return error.message;
+    return AuthErrorMessages.resolve(error.message);
   }
 
   if (error is String) {
-    return error;
+    return AuthErrorMessages.resolve(error);
   }
 
   return error.toString();

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../features/ai/presentation/ai_chat_screen.dart';
+import '../features/auth/forgot_password_screen.dart';
 import '../features/auth/login_screen.dart';
 import '../features/auth/pairing_screen.dart';
 import '../features/auth/register_screen.dart';
@@ -20,6 +21,7 @@ class AppRouter {
       routes: [
         GoRoute(path: '/login', builder: (ctx, state) => const LoginScreen()),
         GoRoute(path: '/register', builder: (ctx, state) => const RegisterScreen()),
+        GoRoute(path: '/forgot-password', builder: (ctx, state) => const ForgotPasswordScreen()),
         GoRoute(
           path: '/pairing',
           builder: (ctx, state) => const PairingScreen(mode: PairingMode.link),

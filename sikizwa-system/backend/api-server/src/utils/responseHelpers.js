@@ -1,4 +1,5 @@
 const { ApiError } = require('./apiError');
+const { AUTH_ERRORS } = require('./errorMessages');
 
 function buildSuccessResponse(data = {}, message = 'Request completed successfully') {
   return {
@@ -22,6 +23,15 @@ function buildFailureResponse({ statusCode = 500, message = 'An error occurred',
   return response;
 }
 
+function buildSecurityFailureResponse({
+  statusCode = 401,
+  message = AUTH_ERRORS.unauthorized.message,
+  errorCode = AUTH_ERRORS.unauthorized.errorCode,
+  details = null,
+}) {
+  return buildFailureResponse({ statusCode, message, errorCode, details });
+}
+
 function requireField(value, fieldName) {
   if (typeof value !== 'string' || value.trim().length === 0) {
     throw new ApiError({ statusCode: 400, message: `${fieldName} is required`, errorCode: 'VALIDATION_INVALID_PAYLOAD' });
@@ -33,5 +43,6 @@ function requireField(value, fieldName) {
 module.exports = {
   buildSuccessResponse,
   buildFailureResponse,
+  buildSecurityFailureResponse,
   requireField,
 };

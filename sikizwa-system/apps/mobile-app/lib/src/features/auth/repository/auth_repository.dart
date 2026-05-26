@@ -1,4 +1,5 @@
 import '../../../core/errors.dart';
+import '../../../core/errors/auth_error_messages.dart';
 import '../../../services/api_service.dart';
 
 class AuthSession {
@@ -22,18 +23,18 @@ class AuthRepository {
     required String deviceId,
     required String deviceType,
   }) async {
-    final sanitizedIdentifier = identifier.trim();
+    final normalizedIdentifier = _normalizePhone(identifier);
     final sanitizedPassword = password.trim();
 
     _validateCredentials(
-      identifier: sanitizedIdentifier,
+      identifier: normalizedIdentifier,
       password: sanitizedPassword,
     );
 
     await api.prepareForAuth();
 
     final res = await api.post('/api/auth/login', data: {
-      'identifier': sanitizedIdentifier,
+      'identifier': normalizedIdentifier,
       'password': sanitizedPassword,
       'device_id': deviceId,
       'device_type': deviceType,
@@ -45,9 +46,9 @@ class AuthRepository {
 
     if (access is! String || access.isEmpty) {
       throw ApiException(
-        error: const ApiError(
+        error: ApiError(
           statusCode: 502,
-          message: 'The authentication service returned an invalid response. Please try again.',
+          message: AuthErrorMessages.malformedRequest,
         ),
       );
     }
@@ -64,21 +65,14 @@ class AuthRepository {
     required String password,
     required String deviceId,
     required String deviceType,
-    required String role,
-    required List<Map<String, String>> emergencyContacts,
-    String? email,
-    String? bloodGroup,
-    String? allergies,
-    String? medicalConditions,
-    String? location,
   }) async {
     final sanitizedFullName = fullName.trim();
-    final sanitizedPhone = phone.trim();
+    final normalizedPhone = _normalizePhone(phone);
     final sanitizedPassword = password.trim();
 
     _validateRegistration(
       fullName: sanitizedFullName,
-      phone: sanitizedPhone,
+      phone: normalizedPhone,
       password: sanitizedPassword,
     );
 
@@ -86,15 +80,8 @@ class AuthRepository {
 
     final res = await api.post('/api/auth/register', data: {
       'fullName': sanitizedFullName,
-      'phone': sanitizedPhone,
+      'phone': normalizedPhone,
       'password': sanitizedPassword,
-      'email': email?.trim(),
-      'role': role,
-      'emergencyContacts': emergencyContacts,
-      'bloodGroup': bloodGroup?.trim(),
-      'allergies': allergies?.trim(),
-      'medicalConditions': medicalConditions?.trim(),
-      'location': location?.trim(),
       'device_id': deviceId,
       'device_type': deviceType,
     });
@@ -105,9 +92,9 @@ class AuthRepository {
 
     if (access is! String || access.isEmpty) {
       throw ApiException(
-        error: const ApiError(
+        error: ApiError(
           statusCode: 502,
-          message: 'The authentication service returned an invalid response. Please try again.',
+          message: AuthErrorMessages.malformedRequest,
         ),
       );
     }
@@ -116,6 +103,98 @@ class AuthRepository {
       accessToken: access,
       refreshToken: refresh is String ? refresh : null,
     );
+  }
+
+  Future<String> requestPasswordReset({
+    required String phone,
+  }) async {
+    final normalizedPhone = _normalizePhone(phone);
+
+    await api.prepareForAuth();
+
+    final res = await api.post('/api/auth/forgot-password', data: {
+      'phone': normalizedPhone,
+    });
+
+    final payload = _normalize(res);
+    final message = payload['message']?.toString();
+
+    if (message?.isNotEmpty == true) {
+      return message!;
+    }
+
+    return AuthErrorMessages.messageFor(AuthErrorMessages.resetCodeSent);
+  }
+
+  Future<String> verifyOtp({
+    required String phone,
+    required String otp,
+  }) async {
+    final normalizedPhone = _normalizePhone(phone);
+    final normalizedOtp = otp.trim();
+
+    if (normalizedOtp.isEmpty || !RegExp(r'^\d{6}$').hasMatch(normalizedOtp)) {
+      throw ApiException(
+        error: ApiError(
+          statusCode: 400,
+          message: AuthErrorMessages.messageFor(AuthErrorMessages.otpRequired),
+        ),
+      );
+    }
+
+    await api.prepareForAuth();
+
+    final res = await api.post('/api/auth/verify-otp', data: {
+      'phone': normalizedPhone,
+      'otp': normalizedOtp,
+    });
+
+    final payload = _normalize(res);
+    final message = payload['message']?.toString();
+
+    if (message?.isNotEmpty == true) {
+      return message!;
+    }
+
+    return AuthErrorMessages.messageFor(AuthErrorMessages.otpVerified);
+  }
+
+  Future<String> resetPassword({
+    required String phone,
+    required String otp,
+    required String password,
+  }) async {
+    final normalizedPhone = _normalizePhone(phone);
+    final normalizedOtp = otp.trim();
+    final normalizedPassword = password.trim();
+
+    _validatePasswordStrength(normalizedPassword);
+
+    if (normalizedOtp.isEmpty || !RegExp(r'^\d{6}$').hasMatch(normalizedOtp)) {
+      throw ApiException(
+        error: ApiError(
+          statusCode: 400,
+          message: AuthErrorMessages.messageFor(AuthErrorMessages.otpRequired),
+        ),
+      );
+    }
+
+    await api.prepareForAuth();
+
+    final res = await api.post('/api/auth/reset-password', data: {
+      'phone': normalizedPhone,
+      'otp': normalizedOtp,
+      'password': normalizedPassword,
+    });
+
+    final payload = _normalize(res);
+    final message = payload['message']?.toString();
+
+    if (message?.isNotEmpty == true) {
+      return message!;
+    }
+
+    return AuthErrorMessages.messageFor(AuthErrorMessages.passwordUpdated);
   }
 
   Future<String> requestPairingCode({
@@ -132,9 +211,9 @@ class AuthRepository {
 
     if (code is! String || code.isEmpty) {
       throw ApiException(
-        error: const ApiError(
+        error: ApiError(
           statusCode: 502,
-          message: 'The pairing service returned an invalid response. Please try again.',
+          message: AuthErrorMessages.malformedRequest,
         ),
       );
     }
@@ -155,9 +234,9 @@ class AuthRepository {
 
     if (sanitizedPhone.isEmpty || sanitizedPassword.isEmpty || sanitizedPairingCode.isEmpty) {
       throw ApiException(
-        error: const ApiError(
+        error: ApiError(
           statusCode: 400,
-          message: 'Please enter the pairing code, phone, and password.',
+          message: AuthErrorMessages.messageFor(AuthErrorMessages.pairingRequired),
         ),
       );
     }
@@ -178,9 +257,9 @@ class AuthRepository {
 
     if (access is! String || access.isEmpty) {
       throw ApiException(
-        error: const ApiError(
+        error: ApiError(
           statusCode: 502,
-          message: 'The pairing service returned an invalid response. Please try again.',
+          message: AuthErrorMessages.malformedRequest,
         ),
       );
     }
@@ -195,32 +274,40 @@ class AuthRepository {
     required String identifier,
     required String password,
   }) {
-    final trimmedIdentifier = identifier.trim();
-    final trimmedPassword = password.trim();
-
-    if (trimmedIdentifier.isEmpty || trimmedPassword.isEmpty) {
+    if (identifier.isEmpty || password.isEmpty) {
       throw ApiException(
-        error: const ApiError(
+        error: ApiError(
           statusCode: 400,
-          message: 'Please enter a phone number or username and password.',
+          message: AuthErrorMessages.messageFor(AuthErrorMessages.credentialsRequired),
         ),
       );
     }
 
-    if (trimmedPassword.length < 8 || trimmedPassword.length > 128) {
+    if (!RegExp(r'^\+?[0-9]{7,15}$').hasMatch(identifier)) {
       throw ApiException(
-        error: const ApiError(
+        error: ApiError(
           statusCode: 400,
-          message: 'Password must be at least 8 characters long.',
+          message: AuthErrorMessages.messageFor(AuthErrorMessages.invalidPhone),
         ),
       );
     }
 
-    if (trimmedIdentifier != identifier) {
+    if (password.length < 8 || password.length > 128) {
       throw ApiException(
-        error: const ApiError(
+        error: ApiError(
           statusCode: 400,
-          message: 'Please remove extra spaces from your identifier.',
+          message: AuthErrorMessages.messageFor(AuthErrorMessages.passwordTooShort),
+        ),
+      );
+    }
+  }
+
+  void _validatePasswordStrength(String password) {
+    if (!RegExp(r'^(?=.*[A-Za-z])(?=.*\d).{8,}$').hasMatch(password)) {
+      throw ApiException(
+        error: ApiError(
+          statusCode: 400,
+          message: AuthErrorMessages.messageFor(AuthErrorMessages.weakPassword),
         ),
       );
     }
@@ -233,30 +320,33 @@ class AuthRepository {
   }) {
     if (fullName.isEmpty) {
       throw ApiException(
-        error: const ApiError(
+        error: ApiError(
           statusCode: 400,
-          message: 'Please enter your full name.',
+          message: AuthErrorMessages.messageFor(AuthErrorMessages.fullNameRequired),
         ),
       );
     }
 
     if (!RegExp(r'^\+?[0-9]{7,15}$').hasMatch(phone)) {
       throw ApiException(
-        error: const ApiError(
+        error: ApiError(
           statusCode: 400,
-          message: 'Phone number must be a valid international number.',
+          message: AuthErrorMessages.messageFor(AuthErrorMessages.invalidPhone),
         ),
       );
     }
 
-    if (password.length < 8 || password.length > 128) {
-      throw ApiException(
-        error: const ApiError(
-          statusCode: 400,
-          message: 'Password must be at least 8 characters long.',
-        ),
-      );
+    _validatePasswordStrength(password);
+  }
+
+  String _normalizePhone(String value) {
+    final trimmed = value.trim();
+    if (trimmed.isEmpty) {
+      return '';
     }
+
+    final normalized = trimmed.replaceAll(RegExp(r'[\s\-()]'), '');
+    return normalized;
   }
 
   Map<String, dynamic> _normalize(dynamic response) {

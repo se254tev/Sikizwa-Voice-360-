@@ -1,6 +1,7 @@
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcrypt');
-const mongoose = require('mongoose');
+const { ApiError } = require('../utils/apiError');
+const { AUTH_ERRORS, VALIDATION_ERRORS, NOT_FOUND_ERRORS, SERVER_ERRORS } = require('../utils/errorMessages');
 const User = require('../models/User');
 const Device = require('../models/Device');
 
@@ -8,14 +9,18 @@ function signToken(payload, secret, expiresIn = '15m') {
   return jwt.sign(payload, secret, { expiresIn });
 }
 
+function throwValidationError(message, errorCode = VALIDATION_ERRORS.invalidPayload.errorCode) {
+  throw new ApiError({ statusCode: 400, message, errorCode });
+}
+
 function parsePhone(value) {
   if (typeof value !== 'string') {
-    throw new Error('phone is required');
+    throwValidationError('phone is required');
   }
 
   const normalized = value.trim();
   if (!/^\+?[0-9]{7,15}$/.test(normalized)) {
-    throw new Error('phone must be a valid international number');
+    throwValidationError('phone must be a valid international number', VALIDATION_ERRORS.invalidFormat.errorCode);
   }
 
   return normalized;
@@ -23,33 +28,43 @@ function parsePhone(value) {
 
 function parseDeviceType(value) {
   if (!['phone', 'tablet', 'tv', 'watch'].includes(value)) {
-    throw new Error('device_type must be phone, tablet, tv, or watch');
+    throwValidationError('device_type must be phone, tablet, tv, or watch', VALIDATION_ERRORS.invalidFormat.errorCode);
   }
+
   return value;
 }
 
 function parseDeviceId(value) {
   if (typeof value !== 'string' || value.trim().length === 0) {
-    throw new Error('device_id is required');
+    throwValidationError('device_id is required');
   }
+
   return value.trim();
 }
 
 async function authenticateUser(phone, password) {
   const user = await User.findOne({ $or: [{ phone }, { username: phone }] });
   if (!user) {
-    throw new Error('invalid credentials');
+    throw new ApiError({
+      statusCode: 401,
+      message: AUTH_ERRORS.invalidCredentials.message,
+      errorCode: AUTH_ERRORS.invalidCredentials.errorCode,
+    });
   }
 
   const ok = await bcrypt.compare(password, user.passwordHash || '');
   if (!ok) {
-    throw new Error('invalid credentials');
+    throw new ApiError({
+      statusCode: 401,
+      message: AUTH_ERRORS.invalidCredentials.message,
+      errorCode: AUTH_ERRORS.invalidCredentials.errorCode,
+    });
   }
 
   return user;
 }
 
-async function issuePairingCode(req, res) {
+async function issuePairingCode(req, res, next) {
   try {
     const deviceId = parseDeviceId(req.body.device_id);
     const deviceType = parseDeviceType(req.body.device_type);
@@ -69,40 +84,52 @@ async function issuePairingCode(req, res) {
       expiresAt: new Date(Date.now() + 10 * 60 * 1000).toISOString(),
     });
   } catch (err) {
-    return res.status(400).json({ error: err.message });
+    return next(err);
   }
 }
 
-async function linkDevice(req, res) {
+async function linkDevice(req, res, next) {
   try {
     const deviceId = parseDeviceId(req.body.device_id);
     const deviceType = parseDeviceType(req.body.device_type);
     const pairingCode = typeof req.body.pairing_code === 'string' ? req.body.pairing_code.trim() : '';
 
     if (!pairingCode) {
-      return res.status(400).json({ error: 'pairing_code is required' });
+      throwValidationError('pairing_code is required');
     }
 
     let parsedPairing;
     try {
       parsedPairing = jwt.verify(pairingCode, process.env.JWT_SECRET);
     } catch (err) {
-      return res.status(400).json({ error: 'invalid pairing code' });
+      throw new ApiError({
+        statusCode: 400,
+        message: 'invalid pairing code',
+        errorCode: VALIDATION_ERRORS.invalidPayload.errorCode,
+      });
     }
 
     if (parsedPairing.purpose !== 'device-link') {
-      return res.status(400).json({ error: 'invalid pairing code' });
+      throw new ApiError({
+        statusCode: 400,
+        message: 'invalid pairing code',
+        errorCode: VALIDATION_ERRORS.invalidPayload.errorCode,
+      });
     }
 
     if (parsedPairing.deviceId !== deviceId || parsedPairing.deviceType !== deviceType) {
-      return res.status(400).json({ error: 'pairing code does not match device' });
+      throw new ApiError({
+        statusCode: 400,
+        message: 'pairing code does not match device',
+        errorCode: VALIDATION_ERRORS.invalidPayload.errorCode,
+      });
     }
 
     const phone = parsePhone(req.body.phone);
     const password = typeof req.body.password === 'string' ? req.body.password : '';
 
     if (!password) {
-      return res.status(400).json({ error: 'password is required' });
+      throwValidationError('password is required');
     }
 
     const user = await authenticateUser(phone, password);
@@ -140,22 +167,14 @@ async function linkDevice(req, res) {
       },
     });
   } catch (err) {
-    if (err.message === 'invalid credentials') {
-      return res.status(401).json({ error: 'invalid credentials' });
-    }
-
-    if (err.message === 'phone is required' || err.message === 'phone must be a valid international number') {
-      return res.status(400).json({ error: err.message });
-    }
-
-    return res.status(400).json({ error: err.message });
+    return next(err);
   }
 }
 
-async function logoutDevice(req, res) {
+async function logoutDevice(req, res, next) {
   try {
     if (!req.body.device_id || typeof req.body.device_id !== 'string') {
-      return res.status(400).json({ error: 'device_id is required' });
+      throwValidationError('device_id is required');
     }
 
     const device = await Device.findOneAndUpdate(
@@ -165,12 +184,26 @@ async function logoutDevice(req, res) {
     );
 
     if (!device) {
-      return res.status(404).json({ error: 'device not found' });
+      throw new ApiError({
+        statusCode: 404,
+        message: NOT_FOUND_ERRORS.resourceNotFound.message,
+        errorCode: NOT_FOUND_ERRORS.resourceNotFound.errorCode,
+      });
     }
 
     return res.json({ ok: true, deviceId: device.deviceId, isActive: false });
   } catch (err) {
-    return res.status(500).json({ error: 'failed to log out device' });
+    if (err instanceof ApiError) {
+      return next(err);
+    }
+
+    return next(
+      new ApiError({
+        statusCode: 500,
+        message: SERVER_ERRORS.internalServerError.message,
+        errorCode: SERVER_ERRORS.internalServerError.errorCode,
+      })
+    );
   }
 }
 

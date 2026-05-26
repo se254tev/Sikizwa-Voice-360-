@@ -1,7 +1,6 @@
-import 'dart:convert';
-
 import 'package:flutter_riverpod/legacy.dart';
 import '../../../core/errors.dart';
+import '../../../core/errors/auth_error_messages.dart';
 import '../../../providers/app_providers.dart';
 import '../../../services/auth_session_manager.dart';
 import '../../../services/secure_storage_service.dart';
@@ -79,9 +78,9 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
     if (deviceId == null || deviceId.isEmpty || deviceType == null || deviceType.isEmpty) {
       throw ApiException(
-        error: const ApiError(
+        error: ApiError(
           statusCode: 400,
-          message: 'Device information is not available. Please reopen the app and try again.',
+          message: AuthErrorMessages.deviceInfoUnavailable,
         ),
       );
     }
@@ -117,15 +116,15 @@ class AuthNotifier extends StateNotifier<AuthState> {
     required String password,
   }) async {
     await _runAuthOperation(
-      statusMessage: 'Starting secure connection...',
+      statusMessage: 'Connecting',
       action: () async {
         final deviceId = await _storage.readDeviceId();
         final deviceType = await _storage.readDeviceType();
         if (deviceId == null || deviceId.isEmpty || deviceType == null || deviceType.isEmpty) {
           throw ApiException(
-            error: const ApiError(
+            error: ApiError(
               statusCode: 400,
-              message: 'Device information is not available. Please reopen the app and try again.',
+              message: AuthErrorMessages.deviceInfoUnavailable,
             ),
           );
         }
@@ -151,24 +150,17 @@ class AuthNotifier extends StateNotifier<AuthState> {
     required String fullName,
     required String phone,
     required String password,
-    required String role,
-    required List<Map<String, String>> emergencyContacts,
-    String? email,
-    String? bloodGroup,
-    String? allergies,
-    String? medicalConditions,
-    String? location,
   }) async {
     await _runAuthOperation(
-      statusMessage: 'Starting secure connection...',
+      statusMessage: 'Connecting',
       action: () async {
         final deviceId = await _storage.readDeviceId();
         final deviceType = await _storage.readDeviceType();
         if (deviceId == null || deviceId.isEmpty || deviceType == null || deviceType.isEmpty) {
           throw ApiException(
-            error: const ApiError(
+            error: ApiError(
               statusCode: 400,
-              message: 'Device information is not available. Please reopen the app and try again.',
+              message: AuthErrorMessages.deviceInfoUnavailable,
             ),
           );
         }
@@ -179,26 +171,6 @@ class AuthNotifier extends StateNotifier<AuthState> {
           password: password,
           deviceId: deviceId,
           deviceType: deviceType,
-          role: role,
-          emergencyContacts: emergencyContacts,
-          email: email,
-          bloodGroup: bloodGroup,
-          allergies: allergies,
-          medicalConditions: medicalConditions,
-          location: location,
-        );
-        await _storage.saveEmergencyProfile(
-          jsonEncode({
-            'fullName': fullName,
-            'phone': phone,
-            'email': email,
-            'role': role,
-            'contacts': emergencyContacts,
-            'bloodGroup': bloodGroup,
-            'allergies': allergies,
-            'medicalConditions': medicalConditions,
-            'location': location,
-          }),
         );
         await _sessionManager.persistSession(session);
 
@@ -217,15 +189,15 @@ class AuthNotifier extends StateNotifier<AuthState> {
     required String password,
   }) async {
     await _runAuthOperation(
-      statusMessage: 'Starting secure connection...',
+      statusMessage: 'Connecting',
       action: () async {
         final deviceId = await _storage.readDeviceId();
         final deviceType = await _storage.readDeviceType();
         if (deviceId == null || deviceId.isEmpty || deviceType == null || deviceType.isEmpty) {
           throw ApiException(
-            error: const ApiError(
+            error: ApiError(
               statusCode: 400,
-              message: 'Device information is not available. Please reopen the app and try again.',
+              message: AuthErrorMessages.deviceInfoUnavailable,
             ),
           );
         }

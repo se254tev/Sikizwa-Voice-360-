@@ -1,77 +1,78 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sikizwa_mobile/src/core/api_error_parser.dart';
 import 'package:sikizwa_mobile/src/core/errors.dart';
+import 'package:sikizwa_mobile/src/core/errors/auth_error_messages.dart';
 
 void main() {
   group('ApiErrorParser', () {
-    test('maps login validation errors to readable messages', () {
-      final message = ApiErrorParser.userMessageForResponse(
+    test('maps login validation errors to normalized auth keys', () {
+      final key = ApiErrorParser.errorKeyForResponse(
         statusCode: 400,
         body: {'error': 'username and password required'},
         path: '/api/auth/login',
       );
 
-      expect(message, 'Please enter a username and password.');
+      expect(key, AuthErrorMessages.invalidCredentials);
     });
 
-    test('maps invalid login credentials to a friendly message', () {
-      final message = ApiErrorParser.userMessageForResponse(
+    test('maps invalid login credentials to a normalized auth key', () {
+      final key = ApiErrorParser.errorKeyForResponse(
         statusCode: 401,
         body: {'error': 'invalid'},
         path: '/api/auth/login',
       );
 
-      expect(message, 'Invalid username or password.');
+      expect(key, AuthErrorMessages.invalidCredentials);
     });
 
-    test('maps password validation failures to readable guidance', () {
-      final message = ApiErrorParser.userMessageForResponse(
+    test('maps weak password failures to a validation key', () {
+      final key = ApiErrorParser.errorKeyForResponse(
         statusCode: 422,
         body: {'error': '"password" length must be at least 8 characters long'},
         path: '/api/auth/register',
       );
 
-      expect(message, 'Password must be at least 8 characters long.');
+      expect(key, AuthErrorMessages.weakPassword);
     });
 
-    test('falls back to a generic message when the backend returns no details', () {
-      final message = ApiErrorParser.userMessageForResponse(
+    test('falls back to a malformed request key when the backend returns no details', () {
+      final key = ApiErrorParser.errorKeyForResponse(
         statusCode: 400,
         body: null,
         path: '/api/ai/chat',
       );
 
-      expect(message, 'The request could not be completed. Please review your input and try again.');
+      expect(key, AuthErrorMessages.malformedRequest);
     });
 
-    test('maps server start-up responses to a warm-up message', () {
-      final message = ApiErrorParser.userMessageForResponse(
+    test('maps server start-up responses to the server unavailable key', () {
+      final key = ApiErrorParser.errorKeyForResponse(
         statusCode: 503,
         body: {'message': 'Server is starting'},
         path: '/api/auth/login',
       );
 
-      expect(message, 'Server is starting. Please wait a moment.');
+      expect(key, AuthErrorMessages.serverUnavailable);
     });
 
-    test('maps timeout responses to a dedicated timeout message', () {
-      final message = ApiErrorParser.userMessageForResponse(
+    test('maps timeout responses to the connection timeout key', () {
+      final key = ApiErrorParser.errorKeyForResponse(
         statusCode: 408,
         body: {'message': 'Timeout'},
         path: '/api/auth/register',
       );
 
-      expect(message, 'Connection is taking longer than expected.');
+      expect(key, AuthErrorMessages.connectionTimeout);
     });
 
-    test('maps rate-limited responses to a friendly retry message', () {
-      final message = ApiErrorParser.userMessageForResponse(
+    test('maps rate-limited responses to the rate limited key', () {
+      final key = ApiErrorParser.errorKeyForResponse(
         statusCode: 429,
         body: {'message': 'Too many requests. Please try again later.'},
         path: '/api/auth/login',
       );
 
-      expect(message, 'Too many requests. Please try again later.');
+      expect(key, AuthErrorMessages.rateLimited);
     });
   });
 
@@ -79,12 +80,12 @@ void main() {
     test('preserves structured metadata for UI and logging', () {
       const error = ApiError(
         statusCode: 401,
-        message: 'Your session has expired. Please sign in again.',
+        message: AuthErrorMessages.sessionExpired,
         details: 'token expired',
       );
 
       expect(error.statusCode, 401);
-      expect(error.message, 'Your session has expired. Please sign in again.');
+      expect(error.message, AuthErrorMessages.sessionExpired);
       expect(error.details, 'token expired');
     });
   });

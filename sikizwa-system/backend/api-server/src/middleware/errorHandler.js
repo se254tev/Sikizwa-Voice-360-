@@ -1,5 +1,6 @@
 const logger = require('../config/logger');
 const { ApiError } = require('../utils/apiError');
+const { buildSecurityFailureResponse } = require('../utils/responseHelpers');
 const {
   AUTH_ERRORS,
   VALIDATION_ERRORS,
@@ -141,15 +142,12 @@ function errorHandler(err, req, res, next) {
     'Request failed'
   );
 
-  const response = {
-    success: false,
+  const response = buildSecurityFailureResponse({
+    statusCode: normalizedError.statusCode,
     message: normalizedError.message,
     errorCode: normalizedError.errorCode,
-  };
-
-  if (!isProduction && normalizedError.details) {
-    response.details = normalizedError.details;
-  }
+    details: normalizedError.details,
+  });
 
   if (!isProduction && err.stack) {
     response.stack = err.stack;

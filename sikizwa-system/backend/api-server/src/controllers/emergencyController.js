@@ -1,5 +1,7 @@
 const Emergency = require('../models/Emergency');
 const AuditLog = require('../models/AuditLog');
+const { ApiError } = require('../utils/apiError');
+const { NOT_FOUND_ERRORS } = require('../utils/errorMessages');
 const { scoreEmergency } = require('../services/riskService');
 const { notifyEmergency } = require('../services/notificationService');
 
@@ -51,7 +53,13 @@ async function listEmergencies(req, res, next) {
 async function resolveEmergency(req, res, next) {
   try {
     const emergency = await Emergency.findById(req.params.id);
-    if (!emergency) return res.status(404).json({ error: 'Emergency not found' });
+    if (!emergency) {
+      throw new ApiError({
+        statusCode: 404,
+        message: NOT_FOUND_ERRORS.resourceNotFound.message,
+        errorCode: NOT_FOUND_ERRORS.resourceNotFound.errorCode,
+      });
+    }
     emergency.status = 'resolved';
     await emergency.save();
     await AuditLog.create({

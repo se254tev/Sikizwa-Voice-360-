@@ -1,5 +1,3 @@
-import 'dart:math';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -8,7 +6,6 @@ import '../../../src/core/validation/form_validators.dart';
 import '../../../src/shared/widgets/validated_text_field.dart';
 import '../../../src/shared/widgets/validation_summary.dart';
 import 'providers/auth_provider.dart';
-import 'registration_helpers.dart';
 
 class RegisterScreen extends ConsumerStatefulWidget {
   const RegisterScreen({super.key});
@@ -22,35 +19,12 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   final _fullNameController = TextEditingController();
   final _phoneController = TextEditingController();
   final _passwordController = TextEditingController();
-  final _emailController = TextEditingController();
-  final _roleController = TextEditingController(text: 'other');
-  final _bloodGroupController = TextEditingController();
-  final _allergiesController = TextEditingController();
-  final _medicalConditionsController = TextEditingController();
-  final _locationController = TextEditingController();
-  final _primaryNameController = TextEditingController();
-  final _primaryPhoneController = TextEditingController();
-  final _primaryRelationshipController = TextEditingController();
-  final _secondaryNameController = TextEditingController();
-  final _secondaryPhoneController = TextEditingController();
-  final _secondaryRelationshipController = TextEditingController();
-  final _guardianNameController = TextEditingController();
-  final _guardianPhoneController = TextEditingController();
-  final _guardianRelationshipController = TextEditingController();
+  final _confirmPasswordController = TextEditingController();
 
   final _fullNameFocusNode = FocusNode();
   final _phoneFocusNode = FocusNode();
   final _passwordFocusNode = FocusNode();
-  final _emailFocusNode = FocusNode();
-  final _primaryNameFocusNode = FocusNode();
-  final _primaryPhoneFocusNode = FocusNode();
-  final _primaryRelationshipFocusNode = FocusNode();
-  final _secondaryNameFocusNode = FocusNode();
-  final _secondaryPhoneFocusNode = FocusNode();
-  final _secondaryRelationshipFocusNode = FocusNode();
-  final _guardianNameFocusNode = FocusNode();
-  final _guardianPhoneFocusNode = FocusNode();
-  final _guardianRelationshipFocusNode = FocusNode();
+  final _confirmPasswordFocusNode = FocusNode();
 
   List<String> _summaryErrors = const [];
 
@@ -59,86 +33,13 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     _fullNameController.dispose();
     _phoneController.dispose();
     _passwordController.dispose();
-    _emailController.dispose();
-    _roleController.dispose();
-    _bloodGroupController.dispose();
-    _allergiesController.dispose();
-    _medicalConditionsController.dispose();
-    _locationController.dispose();
-    _primaryNameController.dispose();
-    _primaryPhoneController.dispose();
-    _primaryRelationshipController.dispose();
-    _secondaryNameController.dispose();
-    _secondaryPhoneController.dispose();
-    _secondaryRelationshipController.dispose();
-    _guardianNameController.dispose();
-    _guardianPhoneController.dispose();
-    _guardianRelationshipController.dispose();
+    _confirmPasswordController.dispose();
     _fullNameFocusNode.dispose();
     _phoneFocusNode.dispose();
     _passwordFocusNode.dispose();
-    _emailFocusNode.dispose();
-    _primaryNameFocusNode.dispose();
-    _primaryPhoneFocusNode.dispose();
-    _primaryRelationshipFocusNode.dispose();
-    _secondaryNameFocusNode.dispose();
-    _secondaryPhoneFocusNode.dispose();
-    _secondaryRelationshipFocusNode.dispose();
-    _guardianNameFocusNode.dispose();
-    _guardianPhoneFocusNode.dispose();
-    _guardianRelationshipFocusNode.dispose();
+    _confirmPasswordFocusNode.dispose();
     super.dispose();
   }
-
-  Map<String, String> _buildContact(
-    TextEditingController nameController,
-    TextEditingController phoneController,
-    TextEditingController relationshipController,
-  ) {
-    return {
-      'name': nameController.text.trim(),
-      'phone': phoneController.text.trim(),
-      'relationship': relationshipController.text.trim(),
-      'type': 'personal',
-    };
-  }
-
-  List<Map<String, String>> get _emergencyContacts =>
-      filterCompletedEmergencyContacts([
-        _buildContact(
-          _primaryNameController,
-          _primaryPhoneController,
-          _primaryRelationshipController,
-        ),
-        _buildContact(
-          _secondaryNameController,
-          _secondaryPhoneController,
-          _secondaryRelationshipController,
-        ),
-        _buildContact(
-          _guardianNameController,
-          _guardianPhoneController,
-          _guardianRelationshipController,
-        ),
-      ]);
-
-  List<Map<String, String>> get _rawEmergencyContacts => [
-    _buildContact(
-      _primaryNameController,
-      _primaryPhoneController,
-      _primaryRelationshipController,
-    ),
-    _buildContact(
-      _secondaryNameController,
-      _secondaryPhoneController,
-      _secondaryRelationshipController,
-    ),
-    _buildContact(
-      _guardianNameController,
-      _guardianPhoneController,
-      _guardianRelationshipController,
-    ),
-  ];
 
   void _syncSummaryErrors() {
     final errors = <String>[];
@@ -156,36 +57,19 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
       errors.add(phoneError);
     }
 
-    for (final contact in _rawEmergencyContacts) {
-      final hasAnyValue =
-          (contact['name'] ?? '').isNotEmpty ||
-          (contact['phone'] ?? '').isNotEmpty ||
-          (contact['relationship'] ?? '').isNotEmpty;
+    final passwordError = FormValidators.password(
+      _passwordController.text,
+      required: true,
+    );
+    if (passwordError != null) {
+      errors.add(passwordError);
+    }
 
-      if (!hasAnyValue) {
-        continue;
-      }
-
-      if ((contact['name'] ?? '').isEmpty) {
-        errors.add(
-          'Please enter the contact name so we can save this emergency contact.',
-        );
-      }
-
-      if ((contact['phone'] ?? '').isEmpty) {
-        errors.add(
-          'Please enter the contact phone number so we can save this emergency contact.',
-        );
-      }
-
-      if ((contact['relationship'] ?? '').isEmpty) {
-        errors.add('Please tell us how this contact is related to you.');
-      }
-
-      final invalidPhone = FormValidators.phone(contact['phone']);
-      if (invalidPhone != null && (contact['phone'] ?? '').isNotEmpty) {
-        errors.add(invalidPhone);
-      }
+    final confirmPasswordError = _validateConfirmPassword(
+      _confirmPasswordController.text,
+    );
+    if (confirmPasswordError != null) {
+      errors.add(confirmPasswordError);
     }
 
     setState(() => _summaryErrors = errors);
@@ -205,58 +89,22 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
       return _phoneFocusNode;
     }
 
-    final primary = _rawEmergencyContacts[0];
-    if (_contactNeedsValidation(primary)) {
-      if ((primary['name'] ?? '').isEmpty) {
-        return _primaryNameFocusNode;
-      }
-      if (FormValidators.phone(primary['phone']) != null) {
-        return _primaryPhoneFocusNode;
-      }
-      if ((primary['relationship'] ?? '').isEmpty) {
-        return _primaryRelationshipFocusNode;
-      }
+    final passwordError = FormValidators.password(
+      _passwordController.text,
+      required: true,
+    );
+    if (passwordError != null) {
+      return _passwordFocusNode;
     }
 
-    final secondary = _rawEmergencyContacts[1];
-    if (_contactNeedsValidation(secondary)) {
-      if ((secondary['name'] ?? '').isEmpty) {
-        return _secondaryNameFocusNode;
-      }
-      if (FormValidators.phone(secondary['phone']) != null) {
-        return _secondaryPhoneFocusNode;
-      }
-      if ((secondary['relationship'] ?? '').isEmpty) {
-        return _secondaryRelationshipFocusNode;
-      }
-    }
-
-    final guardian = _rawEmergencyContacts[2];
-    if (_contactNeedsValidation(guardian)) {
-      if ((guardian['name'] ?? '').isEmpty) {
-        return _guardianNameFocusNode;
-      }
-      if (FormValidators.phone(guardian['phone']) != null) {
-        return _guardianPhoneFocusNode;
-      }
-      if ((guardian['relationship'] ?? '').isEmpty) {
-        return _guardianRelationshipFocusNode;
-      }
+    final confirmPasswordError = _validateConfirmPassword(
+      _confirmPasswordController.text,
+    );
+    if (confirmPasswordError != null) {
+      return _confirmPasswordFocusNode;
     }
 
     return null;
-  }
-
-  bool _contactNeedsValidation(Map<String, String> contact) {
-    return (contact['name'] ?? '').isNotEmpty ||
-        (contact['phone'] ?? '').isNotEmpty ||
-        (contact['relationship'] ?? '').isNotEmpty;
-  }
-
-  String _generateRegistrationPassword() {
-    const allowed = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#%^&*';
-    final random = Random.secure();
-    return List.generate(12, (_) => allowed[random.nextInt(allowed.length)]).join();
   }
 
   Future<void> _submit() async {
@@ -271,42 +119,15 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
 
     final fullName = _fullNameController.text.trim();
     final phone = _phoneController.text.trim();
-    final password = _generateRegistrationPassword();
-
-    final rawContacts = _rawEmergencyContacts;
-
-    for (final contact in rawContacts) {
-      final validation = validateEmergencyContact(contact);
-      if (validation != null) {
-        setState(() => _summaryErrors = [validation]);
-        if (mounted) {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(SnackBar(content: Text(validation)));
-        }
-        return;
-      }
-    }
+    final password = _passwordController.text.trim();
 
     try {
-      await ref
-          .read(authProvider.notifier)
-          .register(
-            fullName: fullName,
-            phone: phone,
-            password: password,
-            role: _roleController.text.trim().isEmpty
-                ? 'other'
-                : _roleController.text.trim(),
-            emergencyContacts: _emergencyContacts,
-            email: normalizeOptionalField(_emailController.text),
-            bloodGroup: normalizeOptionalField(_bloodGroupController.text),
-            allergies: normalizeOptionalField(_allergiesController.text),
-            medicalConditions: normalizeOptionalField(
-              _medicalConditionsController.text,
-            ),
-            location: normalizeOptionalField(_locationController.text),
-          );
+      await ref.read(authProvider.notifier).register(
+        fullName: fullName,
+        phone: phone,
+        password: password,
+      );
+
       if (mounted) {
         context.go('/home');
       }
@@ -358,7 +179,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                           ),
                           SizedBox(height: 10),
                           Text(
-                            'We only need your full name and phone number to create your account safely.',
+                            'Create a secure account with only your full name, phone number, and password.',
                             style: TextStyle(
                               fontSize: 15,
                               color: Colors.white70,
@@ -427,9 +248,28 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                             label: 'Phone number *',
                             keyboardType: TextInputType.phone,
                             focusNode: _phoneFocusNode,
-                            textInputAction: TextInputAction.done,
+                            textInputAction: TextInputAction.next,
                             validator: (value) =>
                                 FormValidators.phone(value, required: true),
+                          ),
+                          const SizedBox(height: 12),
+                          _buildField(
+                            controller: _passwordController,
+                            label: 'Password *',
+                            focusNode: _passwordFocusNode,
+                            obscureText: true,
+                            textInputAction: TextInputAction.next,
+                            validator: (value) =>
+                                FormValidators.password(value, required: true),
+                          ),
+                          const SizedBox(height: 12),
+                          _buildField(
+                            controller: _confirmPasswordController,
+                            label: 'Confirm password *',
+                            focusNode: _confirmPasswordFocusNode,
+                            obscureText: true,
+                            textInputAction: TextInputAction.done,
+                            validator: _validateConfirmPassword,
                           ),
                         ],
                       ),
@@ -532,4 +372,17 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     );
   }
 
+  String? _validateConfirmPassword(String? value) {
+    final confirmPassword = value?.trim() ?? '';
+
+    if (confirmPassword.isEmpty) {
+      return 'Please re-enter your password.';
+    }
+
+    if (confirmPassword != _passwordController.text.trim()) {
+      return 'Passwords do not match.';
+    }
+
+    return null;
+  }
 }

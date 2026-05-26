@@ -1,12 +1,16 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../src/core/validation/form_validators.dart';
+import '../../../src/providers/app_providers.dart';
 import '../../../src/providers/settings_provider.dart';
 import '../../../src/services/settings_service.dart';
 import '../../../src/shared/widgets/validated_text_field.dart';
 import '../../../src/shared/widgets/validation_summary.dart';
+import '../auth/models/emergency_profile.dart';
 import '../auth/providers/auth_provider.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
@@ -216,7 +220,30 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     return null;
   }
 
-  void _saveContacts() {
+  List<EmergencyContact> _buildContacts() {
+    return [
+      EmergencyContact(
+        name: _primaryNameController.text.trim(),
+        phone: _primaryPhoneController.text.trim(),
+        relationship: _primaryRelationshipController.text.trim(),
+        type: 'personal',
+      ),
+      EmergencyContact(
+        name: _secondaryNameController.text.trim(),
+        phone: _secondaryPhoneController.text.trim(),
+        relationship: _secondaryRelationshipController.text.trim(),
+        type: 'personal',
+      ),
+      EmergencyContact(
+        name: _guardianNameController.text.trim(),
+        phone: _guardianPhoneController.text.trim(),
+        relationship: _guardianRelationshipController.text.trim(),
+        type: 'personal',
+      ),
+    ];
+  }
+
+  Future<void> _saveContacts() async {
     _syncSummaryErrors();
 
     if (!(_contactFormKey.currentState?.validate() ?? false)) {
@@ -224,7 +251,39 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       return;
     }
 
-    _showMessage('Emergency contacts updated for this session.');
+    try {
+      final storage = ref.read(secureStorageProvider);
+      final payload = await storage.readEmergencyProfile();
+
+      if (payload == null || payload.isEmpty) {
+        _showMessage('Could not save your emergency contacts right now. Please try again.');
+        return;
+      }
+
+      final decoded = jsonDecode(payload);
+      if (decoded is! Map) {
+        _showMessage('Could not save your emergency contacts right now. Please try again.');
+        return;
+      }
+
+      final existingProfile = EmergencyProfile.fromJson(Map<String, dynamic>.from(decoded));
+      final updatedProfile = EmergencyProfile(
+        fullName: existingProfile.fullName,
+        phone: existingProfile.phone,
+        email: existingProfile.email,
+        role: existingProfile.role,
+        contacts: _buildContacts(),
+        bloodGroup: existingProfile.bloodGroup,
+        allergies: existingProfile.allergies,
+        medicalConditions: existingProfile.medicalConditions,
+        location: existingProfile.location,
+      );
+
+      await storage.saveEmergencyProfile(jsonEncode(updatedProfile.toJson()));
+      _showMessage('Emergency contacts saved successfully.');
+    } catch (_) {
+      _showMessage('Could not save your emergency contacts right now. Please try again.');
+    }
   }
 
   @override

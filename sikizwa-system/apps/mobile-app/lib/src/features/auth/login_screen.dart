@@ -34,8 +34,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   void _syncSummaryErrors() {
     final errors = <String>[];
 
-    final usernameError = FormValidators.loginIdentifier(
+    final usernameError = FormValidators.phone(
       _usernameController.text,
+      required: true,
     );
     if (usernameError != null) {
       errors.add(usernameError);
@@ -53,8 +54,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   }
 
   void _focusFirstInvalid() {
-    final usernameError = FormValidators.loginIdentifier(
+    final usernameError = FormValidators.phone(
       _usernameController.text,
+      required: true,
     );
     if (usernameError != null) {
       _usernameFocusNode.requestFocus();
@@ -167,11 +169,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     ),
                   AppValidatedTextField(
                     controller: _usernameController,
-                    label: 'Phone or username',
-                    helperText: 'Use your registered phone number or username.',
+                    label: 'Phone number',
+                    helperText: 'Use the phone number you registered with.',
                     focusNode: _usernameFocusNode,
+                    keyboardType: TextInputType.phone,
                     textInputAction: TextInputAction.next,
-                    validator: FormValidators.loginIdentifier,
+                    validator: (value) =>
+                        FormValidators.phone(value, required: true),
                   ),
                   const SizedBox(height: 16),
                   AppValidatedTextField(
@@ -206,6 +210,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   TextButton(
                     onPressed: () => context.go('/register'),
                     child: const Text('Create an account'),
+                  ),
+                  TextButton(
+                    onPressed: () => context.push('/forgot-password'),
+                    child: const Text('Forgot password?'),
                   ),
                 ],
               ),

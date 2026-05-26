@@ -118,7 +118,7 @@ class ApiService {
     } on NetworkException {
       throw ApiException(
         statusCode: 503,
-        message: 'Server is starting. Please wait a moment.',
+        message: AuthErrorMessages.serverUnavailable,
       );
     } catch (error) {
       if (error is AppException) {
@@ -126,7 +126,7 @@ class ApiService {
       }
       throw ApiException(
         statusCode: 503,
-        message: 'Server is starting. Please wait a moment.',
+        message: AuthErrorMessages.serverUnavailable,
       );
     } finally {
       _authPreparing = false;
@@ -229,7 +229,7 @@ class ApiService {
     if (_refreshToken == null || _refreshToken!.isEmpty) {
       throw ApiException(
         statusCode: 401,
-        message: 'Your session has expired. Please sign in again.',
+        message: AuthErrorMessages.sessionExpired,
       );
     }
 
@@ -409,7 +409,7 @@ class ApiService {
         error: 'status=${error.response?.statusCode} url=$requestUrl message=${error.message} body=${_stringifyForLog(error.response?.data)}',
       );
 
-      if (!retry && !isRefreshRequest && method == 'GET' && error.response?.statusCode == 401 && enableAuth && _refreshToken != null) {
+      if (!retry && !isRefreshRequest && error.response?.statusCode == 401 && enableAuth && _refreshToken != null) {
         await refreshAccessToken();
         return _request(
           method: method,
@@ -674,17 +674,23 @@ class ApiService {
     if (error.type == DioExceptionType.connectionTimeout ||
         error.type == DioExceptionType.sendTimeout ||
         error.type == DioExceptionType.receiveTimeout) {
-      return NetworkException('Connection is taking longer than expected.');
+      return ApiException(
+        statusCode: 408,
+        message: AuthErrorMessages.connectionTimeout,
+      );
     }
 
     if (error.type == DioExceptionType.connectionError ||
         error.error is SocketException ||
         error.type == DioExceptionType.unknown) {
-      return OfflineException('No internet connection. Please check your network and try again.');
+      return ApiException(
+        statusCode: 503,
+        message: AuthErrorMessages.serverUnavailable,
+      );
     }
 
     final status = error.response?.statusCode ?? 0;
-    final message = ApiErrorParser.userMessageForResponse(
+    final message = ApiErrorParser.errorKeyForResponse(
       statusCode: status,
       body: error.response?.data,
       path: path,

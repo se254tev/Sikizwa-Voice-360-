@@ -1,5 +1,7 @@
 const SupportChat = require('../models/SupportChat');
 const AuditLog = require('../models/AuditLog');
+const { ApiError } = require('../utils/apiError');
+const { NOT_FOUND_ERRORS } = require('../utils/errorMessages');
 const { getSocket } = require('../utils/socketRegistry');
 
 async function createChat(req, res, next) {
@@ -38,7 +40,11 @@ async function sendMessage(req, res, next) {
   try {
     const chat = await SupportChat.findById(req.params.id);
     if (!chat || !chat.participants.some(participant => participant.equals(req.user._id))) {
-      return res.status(404).json({ error: 'chat not found' });
+      throw new ApiError({
+        statusCode: 404,
+        message: NOT_FOUND_ERRORS.resourceNotFound.message,
+        errorCode: NOT_FOUND_ERRORS.resourceNotFound.errorCode,
+      });
     }
 
     const message = {

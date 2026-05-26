@@ -1,3 +1,5 @@
+import '../errors/auth_error_messages.dart';
+
 class FormValidators {
   const FormValidators._();
 
@@ -16,11 +18,11 @@ class FormValidators {
     final trimmed = value?.trim() ?? '';
 
     if (trimmed.isEmpty) {
-      return 'Please enter your phone or username so we can sign you in.';
+      return AuthErrorMessages.messageFor(AuthErrorMessages.loginIdentifierRequired);
     }
 
     if (trimmed.length < 3) {
-      return 'Enter at least 3 characters for your phone or username.';
+      return AuthErrorMessages.messageFor(AuthErrorMessages.loginIdentifierTooShort);
     }
 
     final normalizedPhone = trimmed.replaceAll(RegExp(r'[()\s-]'), '');
@@ -28,7 +30,7 @@ class FormValidators {
     final isUsername = RegExp(r'^[A-Za-z0-9._@-]{3,}$').hasMatch(trimmed);
 
     if (!isPhone && !isUsername) {
-      return 'Enter a valid phone number or username.';
+      return AuthErrorMessages.messageFor(AuthErrorMessages.loginIdentifierInvalid);
     }
 
     return null;
@@ -48,12 +50,22 @@ class FormValidators {
     return null;
   }
 
+  static String? otp(String? value) {
+    final trimmed = value?.trim() ?? '';
+
+    if (trimmed.isEmpty || !RegExp(r'^\d{6}$').hasMatch(trimmed)) {
+      return AuthErrorMessages.messageFor(AuthErrorMessages.otpRequired);
+    }
+
+    return null;
+  }
+
   static String? email(String? value, {bool required = false}) {
     final trimmed = value?.trim() ?? '';
 
     if (trimmed.isEmpty) {
       if (required) {
-        return 'Please enter a valid email address (for example, name@example.com).';
+        return AuthErrorMessages.messageFor(AuthErrorMessages.invalidEmail);
       }
 
       return null;
@@ -62,7 +74,7 @@ class FormValidators {
     final isValid = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(trimmed);
 
     if (!isValid) {
-      return 'Please enter a valid email address (for example, name@example.com).';
+      return AuthErrorMessages.messageFor(AuthErrorMessages.invalidEmail);
     }
 
     return null;
@@ -73,21 +85,21 @@ class FormValidators {
 
     if (valueToCheck.isEmpty) {
       if (required) {
-        return 'Create password.';
+        return AuthErrorMessages.messageFor(AuthErrorMessages.passwordRequired);
       }
 
       return null;
     }
 
     if (valueToCheck.length < 8) {
-      return 'Password must be at least 8 characters long.';
+      return AuthErrorMessages.messageFor(AuthErrorMessages.passwordTooShort);
     }
 
     final hasUppercase = RegExp(r'[A-Z]').hasMatch(valueToCheck);
     final hasNumber = RegExp(r'[0-9]').hasMatch(valueToCheck);
 
     if (!hasUppercase || !hasNumber) {
-      return 'Use at least 8 characters, including one uppercase letter and one number.';
+      return AuthErrorMessages.messageFor(AuthErrorMessages.weakPassword);
     }
 
     return null;
@@ -98,7 +110,7 @@ class FormValidators {
 
     if (trimmed.isEmpty) {
       if (required) {
-        return 'Enter your phone number.';
+        return AuthErrorMessages.messageFor(AuthErrorMessages.phoneRequired);
       }
 
       return null;
@@ -107,7 +119,7 @@ class FormValidators {
     final normalized = trimmed.replaceAll(RegExp(r'[()\s-]'), '');
 
     if (!RegExp(r'^\+?[0-9]{7,15}$').hasMatch(normalized)) {
-      return 'Please enter a valid phone number using digits only, with an optional country code.';
+      return AuthErrorMessages.messageFor(AuthErrorMessages.phoneFormatInvalid);
     }
 
     return null;
