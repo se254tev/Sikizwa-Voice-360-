@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/errors.dart';
 import '../../providers/app_providers.dart';
 import 'reports_provider.dart';
 
@@ -56,7 +57,7 @@ class _ReportListScreenState extends ConsumerState<ReportListScreen> with Single
   }
 
   Future<void> _submitReport() async {
-    if (!_formKey.currentState!.validate()) {
+    if (!(_formKey.currentState?.validate() ?? false)) {
       return;
     }
 
@@ -88,17 +89,27 @@ class _ReportListScreenState extends ConsumerState<ReportListScreen> with Single
         _reportForMe = true;
       });
 
+      if (!mounted) {
+        return;
+      }
+
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Report submitted successfully.')),
       );
     } catch (error) {
+      if (!mounted) {
+        return;
+      }
+
       setState(() {
-        _submitError = error.toString();
+        _submitError = formatError(error);
       });
     } finally {
-      setState(() {
-        _isSubmitting = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isSubmitting = false;
+        });
+      }
     }
   }
 
@@ -111,11 +122,11 @@ class _ReportListScreenState extends ConsumerState<ReportListScreen> with Single
       appBar: AppBar(title: const Text('Report a problem')),
       body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
           child: reportsAsync.when(
             loading: () => const Center(child: CircularProgressIndicator()),
             error: (error, stackTrace) => _ReportErrorState(
-              message: error.toString(),
+              message: formatError(error),
               theme: theme,
             ),
             data: (reports) {
@@ -135,53 +146,56 @@ class _ReportListScreenState extends ConsumerState<ReportListScreen> with Single
                   ? 'No problem reports are available yet. Start a new report to build your support history.'
                   : 'Showing ${reports.length} recent problem report${reports.length == 1 ? '' : 's'} with ${highestRisk == 'low' ? 'calm' : highestRisk} support signals.';
 
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _SummaryCard(
-                    title: 'Your latest problem reports',
-                    subtitle: summaryMessage,
-                    theme: theme,
+              final reportCards = reports
+                  .map((report) => Padding(
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: _ReportCard(report: report),
+                      ))
+                  .toList(growable: false);
+
+              return Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 900),
+                  child: ListView(
+                    children: [
+                      _SummaryCard(
+                        title: 'Your latest problem reports',
+                        subtitle: summaryMessage,
+                        theme: theme,
+                      ),
+                      const SizedBox(height: 16),
+                      _ReportSubmissionForm(
+                        formKey: _formKey,
+                        reportForMe: _reportForMe,
+                        onReportForChanged: (value) => setState(() => _reportForMe = value),
+                        incidentOptions: _incidentOptions,
+                        selectedIncidentType: _selectedIncidentType,
+                        onIncidentTypeChanged: (value) => setState(() => _selectedIncidentType = value),
+                        locationController: _locationController,
+                        descriptionController: _descriptionController,
+                        descriptionLength: _descriptionLength,
+                        descriptionMaxLength: _descriptionMaxLength,
+                        priority: _priority,
+                        anonymousSubmission: _anonymousSubmission,
+                        isSubmitting: _isSubmitting,
+                        submitError: _submitError,
+                        onPriorityChanged: (value) {
+                          if (value == null) {
+                            return;
+                          }
+                          setState(() => _priority = value);
+                        },
+                        onAnonymousChanged: (value) => setState(() => _anonymousSubmission = value),
+                        onSubmit: _submitReport,
+                      ),
+                      const SizedBox(height: 16),
+                      if (reports.isEmpty)
+                        _EmptyReportState(theme: theme)
+                      else
+                        Column(children: reportCards),
+                    ],
                   ),
-                  const SizedBox(height: 16),
-                  _ReportSubmissionForm(
-                    formKey: _formKey,
-                    reportForMe: _reportForMe,
-                    onReportForChanged: (value) => setState(() => _reportForMe = value),
-                    incidentOptions: _incidentOptions,
-                    selectedIncidentType: _selectedIncidentType,
-                    onIncidentTypeChanged: (value) => setState(() => _selectedIncidentType = value),
-                    locationController: _locationController,
-                    descriptionController: _descriptionController,
-                    descriptionLength: _descriptionLength,
-                    descriptionMaxLength: _descriptionMaxLength,
-                    priority: _priority,
-                    anonymousSubmission: _anonymousSubmission,
-                    isSubmitting: _isSubmitting,
-                    submitError: _submitError,
-                    onPriorityChanged: (value) {
-                      if (value == null) {
-                        return;
-                      }
-                      setState(() => _priority = value);
-                    },
-                    onAnonymousChanged: (value) => setState(() => _anonymousSubmission = value),
-                    onSubmit: _submitReport,
-                  ),
-                  const SizedBox(height: 16),
-                  Expanded(
-                    child: reports.isEmpty
-                        ? _EmptyReportState(theme: theme)
-                        : ListView.separated(
-                            itemCount: reports.length,
-                            separatorBuilder: (_, __) => const SizedBox(height: 12),
-                            itemBuilder: (context, index) {
-                              final report = reports[index];
-                              return _ReportCard(report: report);
-                            },
-                          ),
-                  ),
-                ],
+                ),
               );
             },
           ),

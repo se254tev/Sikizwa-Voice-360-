@@ -6,6 +6,7 @@ import 'dart:io';
 import 'package:dio/dio.dart';
 import '../core/api_error_parser.dart';
 import '../core/errors.dart';
+import '../core/errors/auth_error_messages.dart';
 import 'secure_storage_service.dart';
 
 class ApiService {

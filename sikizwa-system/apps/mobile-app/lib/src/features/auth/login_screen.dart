@@ -156,7 +156,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                     ),
                                     const SizedBox(height: 4),
                                     Text(
-                                      auth.statusMessage ?? 'Preparing authentication service...',
+                                      auth.statusMessage ?? 'Securing your sign-in…',
                                       style: Theme.of(context).textTheme.bodyMedium,
                                     ),
                                   ],
@@ -201,7 +201,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                 child: CircularProgressIndicator(strokeWidth: 2),
                               ),
                               const SizedBox(width: 12),
-                              Text(auth.statusMessage ?? 'Connecting to server...'),
+                              Text(auth.statusMessage ?? 'Securing your sign-in…'),
                             ],
                           )
                         : const Text('Continue'),

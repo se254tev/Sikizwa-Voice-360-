@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../src/core/errors.dart';
 import '../../../src/core/validation/form_validators.dart';
 import '../../../src/providers/app_providers.dart';
 import '../../../src/providers/settings_provider.dart';
@@ -43,6 +44,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   final _guardianRelationshipFocusNode = FocusNode();
 
   List<String> _summaryErrors = const [];
+  bool _isSavingContacts = false;
 
   @override
   void dispose() {
@@ -220,27 +222,109 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     return null;
   }
 
+  bool _contactHasData(Map<String, String> contact) {
+    return (contact['name'] ?? '').trim().isNotEmpty ||
+        (contact['phone'] ?? '').trim().isNotEmpty ||
+        (contact['relationship'] ?? '').trim().isNotEmpty;
+  }
+
   List<EmergencyContact> _buildContacts() {
-    return [
-      EmergencyContact(
-        name: _primaryNameController.text.trim(),
-        phone: _primaryPhoneController.text.trim(),
-        relationship: _primaryRelationshipController.text.trim(),
-        type: 'personal',
-      ),
-      EmergencyContact(
-        name: _secondaryNameController.text.trim(),
-        phone: _secondaryPhoneController.text.trim(),
-        relationship: _secondaryRelationshipController.text.trim(),
-        type: 'personal',
-      ),
-      EmergencyContact(
-        name: _guardianNameController.text.trim(),
-        phone: _guardianPhoneController.text.trim(),
-        relationship: _guardianRelationshipController.text.trim(),
-        type: 'personal',
-      ),
-    ];
+    return _rawContacts
+        .where(_contactHasData)
+        .map(
+          (contact) => EmergencyContact(
+            name: (contact['name'] ?? '').trim(),
+            phone: (contact['phone'] ?? '').trim(),
+            relationship: (contact['relationship'] ?? '').trim(),
+            type: 'personal',
+          ),
+        )
+        .toList(growable: false);
+  }
+
+  Future<EmergencyProfile> _loadExistingProfile() async {
+    final storage = ref.read(secureStorageProvider);
+    final payload = await storage.readEmergencyProfile();
+
+    if (payload == null || payload.trim().isEmpty) {
+      return const EmergencyProfile(
+        fullName: '',
+        phone: '',
+        email: null,
+        role: 'other',
+        contacts: [],
+        bloodGroup: null,
+        allergies: null,
+        medicalConditions: null,
+        location: null,
+      );
+    }
+
+    try {
+      final decoded = jsonDecode(payload);
+      if (decoded is! Map) {
+        return const EmergencyProfile(
+          fullName: '',
+          phone: '',
+          email: null,
+          role: 'other',
+          contacts: [],
+          bloodGroup: null,
+          allergies: null,
+          medicalConditions: null,
+          location: null,
+        );
+      }
+
+      return EmergencyProfile.fromJson(Map<String, dynamic>.from(decoded));
+    } catch (_) {
+      return const EmergencyProfile(
+        fullName: '',
+        phone: '',
+        email: null,
+        role: 'other',
+        contacts: [],
+        bloodGroup: null,
+        allergies: null,
+        medicalConditions: null,
+        location: null,
+      );
+    }
+  }
+
+  EmergencyProfile _buildUpdatedProfile(EmergencyProfile existingProfile, List<EmergencyContact> contacts) {
+    return EmergencyProfile(
+      fullName: existingProfile.fullName,
+      phone: existingProfile.phone,
+      email: existingProfile.email,
+      role: existingProfile.role,
+      contacts: contacts,
+      bloodGroup: existingProfile.bloodGroup,
+      allergies: existingProfile.allergies,
+      medicalConditions: existingProfile.medicalConditions,
+      location: existingProfile.location,
+    );
+  }
+
+  List<EmergencyContact> _extractRemoteContacts(dynamic response) {
+    if (response is! Map) {
+      return const [];
+    }
+
+    final data = response['data'];
+    if (data is! Map) {
+      return const [];
+    }
+
+    final rawContacts = data['contacts'];
+    if (rawContacts is! List) {
+      return const [];
+    }
+
+    return rawContacts
+        .whereType<Map>()
+        .map((entry) => EmergencyContact.fromJson(Map<String, dynamic>.from(entry)))
+        .toList(growable: false);
   }
 
   Future<void> _saveContacts() async {
@@ -251,38 +335,60 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       return;
     }
 
+    setState(() => _isSavingContacts = true);
+
     try {
       final storage = ref.read(secureStorageProvider);
-      final payload = await storage.readEmergencyProfile();
-
-      if (payload == null || payload.isEmpty) {
-        _showMessage('Could not save your emergency contacts right now. Please try again.');
-        return;
-      }
-
-      final decoded = jsonDecode(payload);
-      if (decoded is! Map) {
-        _showMessage('Could not save your emergency contacts right now. Please try again.');
-        return;
-      }
-
-      final existingProfile = EmergencyProfile.fromJson(Map<String, dynamic>.from(decoded));
-      final updatedProfile = EmergencyProfile(
-        fullName: existingProfile.fullName,
-        phone: existingProfile.phone,
-        email: existingProfile.email,
-        role: existingProfile.role,
-        contacts: _buildContacts(),
-        bloodGroup: existingProfile.bloodGroup,
-        allergies: existingProfile.allergies,
-        medicalConditions: existingProfile.medicalConditions,
-        location: existingProfile.location,
-      );
+      final api = ref.read(apiServiceProvider);
+      final existingProfile = await _loadExistingProfile();
+      final contacts = _buildContacts();
+      final updatedProfile = _buildUpdatedProfile(existingProfile, contacts);
 
       await storage.saveEmergencyProfile(jsonEncode(updatedProfile.toJson()));
-      _showMessage('Emergency contacts saved successfully.');
+
+      try {
+        final response = await api.put(
+          '/api/user/emergency-contacts',
+          data: {
+            'contacts': contacts.map((contact) => contact.toJson()).toList(),
+          },
+        );
+
+        final syncedContacts = _extractRemoteContacts(response);
+        final syncedProfile = _buildUpdatedProfile(updatedProfile, syncedContacts.isNotEmpty ? syncedContacts : contacts);
+        await storage.saveEmergencyProfile(jsonEncode(syncedProfile.toJson()));
+
+        if (contacts.isEmpty) {
+          _showMessage('Emergency contacts cleared securely and saved locally.');
+        } else {
+          _showMessage('Emergency contacts saved securely and synced to your account.');
+        }
+      } on ApiException catch (error) {
+        if (error.statusCode == 401) {
+          _showMessage(
+            'Your session has expired. Please sign in again. Your emergency contacts are still saved on this device.',
+          );
+          return;
+        }
+
+        if (contacts.isEmpty) {
+          _showMessage('Emergency contacts cleared locally. Your account sync is unavailable right now.');
+        } else {
+          _showMessage('Emergency contacts saved locally. We could not sync them to your account right now.');
+        }
+      } catch (_) {
+        if (contacts.isEmpty) {
+          _showMessage('Emergency contacts cleared locally. Your account sync is unavailable right now.');
+        } else {
+          _showMessage('Emergency contacts saved locally. We could not sync them to your account right now.');
+        }
+      }
     } catch (_) {
       _showMessage('Could not save your emergency contacts right now. Please try again.');
+    } finally {
+      if (mounted) {
+        setState(() => _isSavingContacts = false);
+      }
     }
   }
 
@@ -464,8 +570,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                           SizedBox(
                             height: 52,
                             child: ElevatedButton(
-                              onPressed: _saveContacts,
-                              child: const Text('Save contacts locally'),
+                              onPressed: _isSavingContacts ? null : _saveContacts,
+                              child: _isSavingContacts
+                                  ? const SizedBox(
+                                      width: 20,
+                                      height: 20,
+                                      child: CircularProgressIndicator(strokeWidth: 2),
+                                    )
+                                  : const Text('Save contacts securely'),
                             ),
                           ),
                         ],

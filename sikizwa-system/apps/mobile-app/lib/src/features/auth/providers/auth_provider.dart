@@ -116,7 +116,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
     required String password,
   }) async {
     await _runAuthOperation(
-      statusMessage: 'Connecting',
+      statusMessage: 'Securing your sign-in…',
       action: () async {
         final deviceId = await _storage.readDeviceId();
         final deviceType = await _storage.readDeviceType();
@@ -152,7 +152,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
     required String password,
   }) async {
     await _runAuthOperation(
-      statusMessage: 'Connecting',
+      statusMessage: 'Securing your sign-in…',
       action: () async {
         final deviceId = await _storage.readDeviceId();
         final deviceType = await _storage.readDeviceType();
@@ -189,7 +189,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
     required String password,
   }) async {
     await _runAuthOperation(
-      statusMessage: 'Connecting',
+      statusMessage: 'Securing your sign-in…',
       action: () async {
         final deviceId = await _storage.readDeviceId();
         final deviceType = await _storage.readDeviceType();
