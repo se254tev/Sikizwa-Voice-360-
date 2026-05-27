@@ -1,3 +1,4 @@
+import asyncio
 import os
 import librosa
 import numpy as np
@@ -12,13 +13,18 @@ def get_emotion_pipeline():
         _emotion_pipeline = pipeline('audio-classification', model=os.getenv('EMOTION_MODEL', 'superb/hubert-large-superb-er'))
     return _emotion_pipeline
 
+
+async def initialize_emotion_pipeline():
+    await asyncio.to_thread(get_emotion_pipeline)
+
+
 async def analyze_emotion(file):
-    path = save_upload_file(file)
+    path = await asyncio.to_thread(save_upload_file, file)
     try:
-        signal, sr = librosa.load(path, sr=16000)
+        signal, sr = await asyncio.to_thread(librosa.load, path, sr=16000)
         energy = np.mean(np.abs(signal))
-        pipeline = get_emotion_pipeline()
-        labels = pipeline(path, top_k=3)
+        emotion_pipeline = await asyncio.to_thread(get_emotion_pipeline)
+        labels = await asyncio.to_thread(emotion_pipeline, path, top_k=3)
         emotions = {item['label'].lower(): float(item['score']) for item in labels}
         urgency = 'low'
         if emotions.get('sadness', 0) > 0.6 or energy > 0.03:
@@ -29,4 +35,5 @@ async def analyze_emotion(file):
             urgency = 'emergency'
         return emotions, urgency
     finally:
-        os.remove(path)
+        if os.path.exists(path):
+            os.remove(path)

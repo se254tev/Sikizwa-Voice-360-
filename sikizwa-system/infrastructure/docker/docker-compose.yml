@@ -18,6 +18,8 @@ services:
     build: ./backend/api-server
     env_file:
       - ./backend/api-server/.env
+    environment:
+      - AI_SERVICE_URL=http://ai:8000
     ports:
       - "4000:4000"
     depends_on:
@@ -28,6 +30,8 @@ services:
     build: ./apps/ai-service
     env_file:
       - ./apps/ai-service/.env
+    environment:
+      - WORKERS=2
     ports:
       - "8000:8000"
     depends_on:

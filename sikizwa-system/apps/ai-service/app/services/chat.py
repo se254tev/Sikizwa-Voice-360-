@@ -1,6 +1,9 @@
+import asyncio
+import logging
 import os
 from openai import OpenAI
 
+logger = logging.getLogger('sikizwa-ai-service.chat')
 client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
 
 DEFAULT_PROMPT = (
@@ -14,7 +17,8 @@ FALLBACK_REPLY = (
     "If you’re in immediate danger, please reach out to a trusted person or emergency services right away."
 )
 
-async def respond_chat(message, context):
+
+def _sync_respond_chat(message, context):
     try:
         response = client.chat.completions.create(
             model=os.getenv('OPENAI_CHAT_MODEL', 'gpt-4o-mini'),
@@ -31,7 +35,12 @@ async def respond_chat(message, context):
             temperature=0.7,
             max_tokens=500
         )
-        reply = response.choices[0].message.content or FALLBACK_REPLY
-        return {'reply': reply}
-    except Exception:
-        return {'reply': FALLBACK_REPLY}
+        return response.choices[0].message.content or FALLBACK_REPLY
+    except Exception as exc:
+        logger.exception('chat model failure')
+        return FALLBACK_REPLY
+
+
+async def respond_chat(message, context):
+    reply = await asyncio.to_thread(_sync_respond_chat, message, context)
+    return {'reply': reply}

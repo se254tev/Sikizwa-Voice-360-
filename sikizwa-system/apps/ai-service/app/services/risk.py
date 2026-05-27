@@ -1,3 +1,4 @@
+import asyncio
 import os
 import re
 from transformers import pipeline
@@ -15,14 +16,19 @@ def get_risk_pipeline():
         _risk_pipeline = pipeline('text-classification', model=os.getenv('RISK_MODEL', 'j-hartmann/emotion-english-distilroberta-base'))
     return _risk_pipeline
 
+
+async def initialize_risk_pipeline():
+    await asyncio.to_thread(get_risk_pipeline)
+
+
 async def compute_risk_score(text):
     text_lower = text.lower()
     score = 0.0
     for keyword in KEYWORDS:
         if keyword in text_lower:
             score += 0.24
-    classifier = get_risk_pipeline()
-    result = classifier(text, truncation=True, top_k=2)
+    classifier = await asyncio.to_thread(get_risk_pipeline)
+    result = await asyncio.to_thread(classifier, text, truncation=True, top_k=2)
     categories = {item['label'].lower(): float(item['score']) for item in result}
     if categories.get('sadness', 0) > 0.7:
         score += 0.25
