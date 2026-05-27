@@ -22,6 +22,37 @@ function getStandardError(err) {
     };
   }
 
+  if (err.code === 'EBADCSRFTOKEN') {
+    return {
+      statusCode: 403,
+      message: 'The CSRF token is invalid or missing. Please refresh and try again.',
+      errorCode: 'AUTH_CSRF_INVALID',
+      details: [err.message || 'Invalid CSRF token'],
+    };
+  }
+
+  if (err.name === 'ValidationError') {
+    const details = err.errors
+      ? Object.values(err.errors).map((validationError) => validationError.message)
+      : undefined;
+
+    return {
+      statusCode: 400,
+      message: VALIDATION_ERRORS.invalidPayload.message,
+      errorCode: VALIDATION_ERRORS.invalidPayload.errorCode,
+      details: details && details.length > 0 ? details : undefined,
+    };
+  }
+
+  if (err.name === 'CastError') {
+    return {
+      statusCode: 400,
+      message: VALIDATION_ERRORS.invalidPayload.message,
+      errorCode: VALIDATION_ERRORS.invalidPayload.errorCode,
+      details: [`Invalid value for ${err.path}`],
+    };
+  }
+
   if (err.message === 'Not allowed by CORS') {
     return {
       statusCode: 403,
@@ -136,8 +167,9 @@ function errorHandler(err, req, res, next) {
       message: normalizedError.message,
       method: req.method,
       path: req.originalUrl,
-      stack: isProduction ? undefined : err.stack,
+      stack: err.stack,
       details: normalizedError.details,
+      rawError: err,
     },
     'Request failed'
   );

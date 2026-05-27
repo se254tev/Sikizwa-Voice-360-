@@ -7,6 +7,8 @@ const { scoreEmergency } = require('../services/riskService');
 const { getPrivacySettings } = require('../utils/settings');
 const { sendNotification } = require('../services/notificationService');
 const { serializeReport, formatTitle, inferMoodStatus } = require('../utils/reportSerializer');
+const { ApiError } = require('../utils/apiError');
+const { AUTH_ERRORS, VALIDATION_ERRORS, SERVER_ERRORS } = require('../utils/errorMessages');
 
 function normalizeBoolean(value) {
   if (typeof value === 'boolean') {
@@ -83,6 +85,59 @@ function normalizeTimestamp(value) {
   return parsed;
 }
 
+function sanitizeReportPayload(payload) {
+  if (!payload || typeof payload !== 'object') {
+    return {};
+  }
+
+  return {
+    type: payload.type,
+    reportType: payload.reportType,
+    incidentType: payload.incidentType,
+    title: payload.title,
+    description: typeof payload.description === 'string' ? payload.description.slice(0, 1024) : undefined,
+    anonymousSubmission: Boolean(payload.anonymousSubmission),
+    priority: payload.priority,
+    status: payload.status,
+    timestamp: payload.timestamp instanceof Date ? payload.timestamp.toISOString() : payload.timestamp,
+    riskLevel: payload.riskLevel,
+    location: payload.location,
+  };
+}
+
+function validateTransformedReportPayload(payload) {
+  const validationErrors = [];
+
+  if (!payload || typeof payload !== 'object') {
+    validationErrors.push('Report payload must be an object.');
+  } else {
+    if (typeof payload.description !== 'string' || payload.description.trim().length < 10) {
+      validationErrors.push('description is required and must be at least 10 characters.');
+    }
+
+    if (typeof payload.type !== 'string' || payload.type.trim().length === 0) {
+      validationErrors.push('type is required.');
+    }
+
+    if (typeof payload.priority !== 'string' || !['low', 'medium', 'high'].includes(payload.priority)) {
+      validationErrors.push('priority must be low, medium, or high.');
+    }
+
+    if (!(payload.timestamp instanceof Date) || Number.isNaN(payload.timestamp.getTime())) {
+      validationErrors.push('timestamp must be a valid date.');
+    }
+  }
+
+  if (validationErrors.length > 0) {
+    throw new ApiError({
+      statusCode: 400,
+      message: VALIDATION_ERRORS.invalidPayload.message,
+      errorCode: VALIDATION_ERRORS.invalidPayload.errorCode,
+      details: validationErrors,
+    });
+  }
+}
+
 function buildReportPayload(req) {
   const privacy = getPrivacySettings(req.user);
   const description = typeof req.body.description === 'string' ? req.body.description.trim() : '';
@@ -149,9 +204,52 @@ async function notifyAdminsOfReport(report) {
 }
 
 async function createReport(req, res, next) {
+  const requestPayload = sanitizeReportPayload(req.body);
+  const userId = req.user?._id ? String(req.user._id) : null;
+
+  logger.info('Starting report creation', {
+    userId,
+    requestPayload,
+  });
+
   try {
+    if (!req.user) {
+      throw new ApiError({
+        statusCode: 401,
+        message: AUTH_ERRORS.unauthorized.message,
+        errorCode: AUTH_ERRORS.unauthorized.errorCode,
+      });
+    }
+
     const payload = buildReportPayload(req);
-    const report = await Report.create(payload);
+    const sanitizedPayload = sanitizeReportPayload(payload);
+    validateTransformedReportPayload(payload);
+
+    logger.info('Report payload validated and ready for persistence', {
+      userId,
+      payload: sanitizedPayload,
+    });
+
+    let report;
+    try {
+      report = await Report.create(payload);
+    } catch (error) {
+      logger.error('Report creation failed', {
+        message: error?.message || String(error),
+        stack: error?.stack,
+        payload: sanitizedPayload,
+        userId,
+      });
+      return next(error instanceof Error ? error : new ApiError({ message: String(error) }));
+    }
+
+    if (!report) {
+      throw new ApiError({
+        statusCode: 500,
+        message: SERVER_ERRORS.internalServerError.message,
+        errorCode: SERVER_ERRORS.internalServerError.errorCode,
+      });
+    }
 
     void EmotionalAnalysis.create({
       report: report._id,
