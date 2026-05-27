@@ -17,7 +17,7 @@ void main() async {
     baseUrl: AppConfig.apiBaseUrl,
     storage: storage,
     enableAuth: true,
-    enableCsrf: true,
+    enableCsrf: false,
   );
   final sessionManager = AuthSessionManager(api, storage);
   final deviceDetection = DeviceDetectionService(storage: storage);

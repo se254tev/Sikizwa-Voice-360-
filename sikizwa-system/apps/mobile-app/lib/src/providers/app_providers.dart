@@ -14,7 +14,7 @@ final apiServiceProvider = Provider<ApiService>((ref) {
     baseUrl: AppConfig.apiBaseUrl,
     storage: storage,
     enableAuth: true,
-    enableCsrf: true,
+    enableCsrf: false,
   );
 });
 
@@ -24,7 +24,7 @@ final aiApiServiceProvider = Provider<ApiService>((ref) {
     baseUrl: AppConfig.aiBaseUrl,
     storage: storage,
     enableAuth: true,
-    enableCsrf: true,
+    enableCsrf: false,
   );
 });
 

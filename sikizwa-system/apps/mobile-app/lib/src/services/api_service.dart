@@ -111,9 +111,13 @@ class ApiService {
     _authPrepareCompleter = Completer<void>();
 
     try {
-      await clearCsrfState();
+      if (enableCsrf) {
+        await clearCsrfState();
+      }
       await _warmServer();
-      await ensureCsrfToken();
+      if (enableCsrf) {
+        await ensureCsrfToken();
+      }
     } on ApiException {
       rethrow;
     } on NetworkException {
