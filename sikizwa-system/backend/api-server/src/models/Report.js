@@ -18,7 +18,11 @@ const reportSchema = new Schema({
   emotional_summary: { type: String, trim: true },
   mood_status: { type: String, trim: true },
   media: [{ url: String, type: String }],
-  location: { type: String, trim: true, default: '' },
+  locationText: { type: String, trim: true, default: '' },
+  location: {
+    type: { type: String, enum: ['Point'], required: false },
+    coordinates: { type: [Number], required: false }
+  },
   anonymousSubmission: { type: Boolean, default: false, index: true },
   priority: { type: String, enum: ['low','medium','high'], default: 'medium', index: true },
   timestamp: { type: Date, default: Date.now },
@@ -36,7 +40,11 @@ const reportSchema = new Schema({
   createdAt: { type: Date, default: Date.now }
 });
 
-reportSchema.index({ location: 1 });
+reportSchema.index({ locationText: 1 });
+reportSchema.index(
+  { location: '2dsphere' },
+  { partialFilterExpression: { 'location.type': 'Point' } }
+);
 reportSchema.index({ reporterUser: 1 });
 reportSchema.index({ createdAt: -1 });
 module.exports = mongoose.model('Report', reportSchema);

@@ -10,6 +10,7 @@ const reportSchema = Joi.object({
     title: Joi.string().trim().min(2).max(160).optional(),
     description: Joi.string().trim().min(10).max(2000).required(),
     media: Joi.array().items(Joi.object({ url: Joi.string().uri(), type: Joi.string().required() })).optional(),
+    locationText: Joi.string().trim().max(200).optional(),
     location: Joi.alternatives().try(
       Joi.string().trim().max(200),
       Joi.object({

@@ -43,6 +43,27 @@ function inferMoodStatus(riskLevel) {
   return 'Calm';
 }
 
+function formatReportLocation(report) {
+  const text = typeof report?.locationText === 'string' && report.locationText.trim().length > 0
+    ? report.locationText.trim()
+    : null;
+
+  if (text) {
+    return text;
+  }
+
+  if (report?.location && typeof report.location === 'object' && Array.isArray(report.location.coordinates) && report.location.coordinates.length === 2) {
+    const [lng, lat] = report.location.coordinates;
+    return `Lat ${lat}, Lng ${lng}`;
+  }
+
+  if (typeof report?.location === 'string' && report.location.trim().length > 0) {
+    return report.location.trim();
+  }
+
+  return null;
+}
+
 function serializeReport(report) {
   const createdAt = report?.createdAt instanceof Date ? report.createdAt : report?.createdAt ? new Date(report.createdAt) : null;
   const timestamp = report?.timestamp instanceof Date ? report.timestamp : report?.timestamp ? new Date(report.timestamp) : null;
@@ -77,7 +98,7 @@ function serializeReport(report) {
     createdAt: createdAt ? createdAt.toISOString() : null,
     timestamp: timestamp ? timestamp.toISOString() : null,
     media: Array.isArray(report?.media) ? report.media : [],
-    location: report?.location || null,
+    location: formatReportLocation(report),
   };
 }
 

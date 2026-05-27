@@ -37,21 +37,43 @@ function normalizeIncidentType(value, fallback = 'Support update') {
 }
 
 function normalizeLocation(value) {
+  const normalized = {
+    locationText: '',
+    location: undefined,
+  };
+
   if (typeof value === 'string') {
-    return value.trim();
+    normalized.locationText = value.trim();
+    return normalized;
   }
 
-  if (value && typeof value === 'object') {
-    if (typeof value.address === 'string' && value.address.trim().length > 0) {
-      return value.address.trim();
-    }
-
-    if (Array.isArray(value.coordinates) && value.coordinates.length === 2) {
-      return `Lat ${value.coordinates[0]}, Lng ${value.coordinates[1]}`;
-    }
+  if (!value || typeof value !== 'object') {
+    return normalized;
   }
 
-  return '';
+  const address = typeof value.address === 'string' ? value.address.trim() : '';
+  const coordinates = Array.isArray(value.coordinates) && value.coordinates.length === 2 ? value.coordinates : null;
+  const validCoordinates = coordinates && coordinates.every((coord) => typeof coord === 'number' && Number.isFinite(coord));
+
+  if (value.type === 'Point' && validCoordinates) {
+    normalized.location = {
+      type: 'Point',
+      coordinates,
+    };
+    normalized.locationText = address || `Lat ${coordinates[1]}, Lng ${coordinates[0]}`;
+    return normalized;
+  }
+
+  if (validCoordinates) {
+    normalized.locationText = address || `Lat ${coordinates[0]}, Lng ${coordinates[1]}`;
+    return normalized;
+  }
+
+  if (address) {
+    normalized.locationText = address;
+  }
+
+  return normalized;
 }
 
 function normalizePriority(value) {
@@ -101,7 +123,8 @@ function sanitizeReportPayload(payload) {
     status: payload.status,
     timestamp: payload.timestamp instanceof Date ? payload.timestamp.toISOString() : payload.timestamp,
     riskLevel: payload.riskLevel,
-    location: payload.location,
+    locationText: typeof payload.locationText === 'string' ? payload.locationText.trim() : undefined,
+    location: payload.location && typeof payload.location === 'object' ? payload.location : undefined,
   };
 }
 
@@ -121,6 +144,14 @@ function validateTransformedReportPayload(payload) {
 
     if (typeof payload.priority !== 'string' || !['low', 'medium', 'high'].includes(payload.priority)) {
       validationErrors.push('priority must be low, medium, or high.');
+    }
+
+    if (payload.location && typeof payload.location === 'object') {
+      const coordinates = Array.isArray(payload.location.coordinates) ? payload.location.coordinates : [];
+      const validCoordinates = coordinates.length === 2 && coordinates.every((value) => typeof value === 'number' && Number.isFinite(value));
+      if (payload.location.type !== 'Point' || !validCoordinates) {
+        validationErrors.push('location must be a valid GeoJSON Point with two numeric coordinates.');
+      }
     }
 
     if (!(payload.timestamp instanceof Date) || Number.isNaN(payload.timestamp.getTime())) {
@@ -143,7 +174,7 @@ function buildReportPayload(req) {
   const description = typeof req.body.description === 'string' ? req.body.description.trim() : '';
   const anonymousSubmission = normalizeBoolean(req.body.anonymousSubmission);
   const incidentType = normalizeIncidentType(req.body.incidentType || req.body.type, 'Support update');
-  const location = normalizeLocation(req.body.location);
+  const normalizedLocation = normalizeLocation(req.body.location);
   const reportType = normalizeReportType(req.body.reportType);
   const timestamp = normalizeTimestamp(req.body.timestamp);
   const priority = normalizePriority(req.body.priority);
@@ -151,7 +182,7 @@ function buildReportPayload(req) {
   const riskLevel = scoreEmergency({
     ...req.body,
     notes: description,
-    location,
+    location: normalizedLocation.location,
   });
 
   const payload = {
@@ -161,7 +192,8 @@ function buildReportPayload(req) {
     incidentType,
     title: req.body.title || incidentType,
     description,
-    location,
+    locationText: normalizedLocation.locationText,
+    location: normalizedLocation.location,
     anonymousSubmission,
     priority,
     timestamp,
