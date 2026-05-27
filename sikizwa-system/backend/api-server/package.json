@@ -24,6 +24,7 @@
     "xss-clean": "^0.1.1",
     "csurf": "^1.11.0",
     "cookie-parser": "^1.4.7",
+    "express-session": "^1.17.3",
     "winston": "^3.8.2",
     "swagger-ui-express": "^4.6.2",
     "yamljs": "^0.3.0",

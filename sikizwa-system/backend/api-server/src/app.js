@@ -6,6 +6,7 @@ const morgan = require('morgan');
 const rateLimit = require('express-rate-limit');
 const xss = require('xss-clean');
 const csurf = require('csurf');
+const session = require('express-session');
 const swaggerUi = require('swagger-ui-express');
 const YAML = require('yamljs');
 
@@ -70,6 +71,20 @@ app.use(helmet());
 app.use(cors(corsOptions));
 app.options('*', cors(corsOptions));
 app.use(cookieParser());
+// Session middleware must come after cookieParser and before CSRF
+app.use(session({
+  name: process.env.SESSION_NAME || 'sikizwa_session',
+  secret: process.env.SESSION_SECRET || 'dev-secret-change-me',
+  resave: false,
+  saveUninitialized: false,
+  proxy: true, // trust the proxy when setting secure cookies
+  cookie: {
+    httpOnly: true,
+    secure: isProduction, // must be true in production (HTTPS)
+    sameSite: isProduction ? 'none' : 'lax',
+    maxAge: 24 * 60 * 60 * 1000,
+  },
+}));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(xss());
@@ -142,16 +157,9 @@ const authLimiter = rateLimit({
   },
 });
 
-// Configure CSRF protection using cookie strategy.
-// For production where frontend may be on a separate origin (CDN/Vercel), set SameSite to 'none'
-// so cookies will be sent with cross-site requests when `credentials: 'include'` is used.
-const csrfProtection = csurf({
-  cookie: {
-    httpOnly: true,
-    sameSite: isProduction ? 'none' : 'lax',
-    secure: isProduction,
-  },
-});
+// Configure CSRF protection to use session-backed tokens. csurf must be initialized
+// after session middleware so tokens are stored in the session.
+const csrfProtection = csurf();
 
 // Routes allowed to bypass CSRF checks. Normalize trailing slashes when comparing.
 const csrfExemptRoutes = new Set(['/api/admin/signup', '/api/admin/login']);
