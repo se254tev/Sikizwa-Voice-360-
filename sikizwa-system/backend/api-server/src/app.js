@@ -77,6 +77,15 @@ app.use(cookieParser());
 app.use(xss());
 app.use(morgan('combined'));
 
+app.use((req, res, next) => {
+  logger.info('Incoming request', {
+    method: req.method,
+    path: req.originalUrl,
+    ip: getClientIp(req),
+  });
+  next();
+});
+
 const getClientIp = (req) =>
   req.ip || req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket.remoteAddress || 'unknown';
 
@@ -188,6 +197,7 @@ if (isProduction) {
 app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(swaggerDoc));
 app.use('/api/auth', authRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/admin', adminRoutes);
 app.use('/api/reports', reportsRoutes);
 app.use('/api/emergencies', emergenciesRoutes);
 app.use('/api/counsellors', counsellorsRoutes);
