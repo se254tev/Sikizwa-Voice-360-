@@ -82,7 +82,7 @@ const getClientIp = (req) =>
 
 app.use((req, res, next) => {
   const isAuthRelated =
-    req.path === '/api/csrf-token' ||
+    req.path === '/web/csrf-token' ||
     req.path === '/health' ||
     req.path.startsWith('/api/auth');
 
@@ -182,7 +182,7 @@ app.use('/web', webRouter);
 if (isProduction) {
   app.use(generalLimiter);
   app.use('/api/auth', authLimiter);
-  app.use('/api/csrf-token', authLimiter);
+  app.use('/web/csrf-token', authLimiter);
 }
 
 app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(swaggerDoc));

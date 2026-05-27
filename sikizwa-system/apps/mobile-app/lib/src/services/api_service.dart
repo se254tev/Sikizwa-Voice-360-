@@ -302,7 +302,7 @@ class ApiService {
     try {
       final response = await _request(
         method: 'GET',
-        path: '/api/csrf-token',
+        path: '/web/csrf-token',
         timeoutMs: 15000,
         skipAuth: true,
         skipCsrf: true,
@@ -323,7 +323,7 @@ class ApiService {
 
       await setCsrfToken(token: token, cookie: cookie);
     } on DioException catch (error) {
-      throw _mapDioError(error, path: '/api/csrf-token');
+      throw _mapDioError(error, path: '/web/csrf-token');
     } finally {
       _csrfRefreshing = false;
       _csrfCompleter?.complete();
