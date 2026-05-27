@@ -70,23 +70,10 @@ const corsOptions = {
 app.use(helmet());
 app.use(cors(corsOptions));
 app.options('*', cors(corsOptions));
-app.use(cookieParser());
-// Session middleware must come after cookieParser and before CSRF
-app.use(session({
-  name: process.env.SESSION_NAME || 'sikizwa_session',
-  secret: process.env.SESSION_SECRET || 'dev-secret-change-me',
-  resave: false,
-  saveUninitialized: false,
-  proxy: true, // trust the proxy when setting secure cookies
-  cookie: {
-    httpOnly: true,
-    secure: isProduction, // must be true in production (HTTPS)
-    sameSite: isProduction ? 'none' : 'lax',
-    maxAge: 24 * 60 * 60 * 1000,
-  },
-}));
+// Parse JSON first, then URL-encoded bodies, then cookies
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+app.use(cookieParser());
 app.use(xss());
 app.use(morgan('combined'));
 
@@ -157,31 +144,40 @@ const authLimiter = rateLimit({
   },
 });
 
-// Configure CSRF protection to use session-backed tokens. csurf must be initialized
-// after session middleware so tokens are stored in the session.
-const csrfProtection = csurf();
+// --- Dual architecture: /web (stateful) vs /api (stateless) ---
+// Web router (stateful): session + csurf for browser-based UI
+const webRouter = express.Router();
 
-// Routes allowed to bypass CSRF checks. Normalize trailing slashes when comparing.
-const csrfExemptRoutes = new Set(['/api/admin/signup', '/api/admin/login']);
+const sessionConfig = {
+  name: process.env.SESSION_NAME || 'sikizwa_session',
+  secret: process.env.SESSION_SECRET || 'dev-secret-change-me',
+  resave: false,
+  saveUninitialized: false,
+  proxy: true,
+  cookie: {
+    httpOnly: true,
+    secure: isProduction,
+    sameSite: isProduction ? 'none' : 'lax',
+    maxAge: 24 * 60 * 60 * 1000,
+  },
+};
 
-app.use((req, res, next) => {
-  const normalizedPath = (req.path || '').replace(/\/+$/g, '') || '/';
+webRouter.use(session(sessionConfig));
+webRouter.use(csurf());
 
-  // Skip CSRF for explicitly exempted routes.
-  if (csrfExemptRoutes.has(normalizedPath)) {
-    logger.debug('CSRF protection skipped for route', {
-      path: req.path,
-      normalizedPath,
-      origin: req.get('origin') || req.get('referer') || null,
-      hasAuthorization: Boolean(req.headers.authorization),
-    });
-    return next();
-  }
-
-  // Attach CSRF protection for other routes. This will set the CSRF cookie
-  // on safe methods and validate tokens for unsafe methods.
-  return csrfProtection(req, res, next);
+// CSRF token endpoint for browser UI under /web
+webRouter.get('/csrf-token', (req, res) => {
+  logger.info('Web CSRF token generated', { ip: getClientIp(req) });
+  res.json({ success: true, csrfToken: req.csrfToken() });
 });
+
+// Mount browser-only routes under /web
+webRouter.use('/docs', swaggerUi.serve, swaggerUi.setup(swaggerDoc));
+webRouter.use('/admin', adminRoutes);
+
+app.use('/web', webRouter);
+
+// Note: API routes mounted below are stateless and MUST NOT use session/csurf.
 
 if (isProduction) {
   app.use(generalLimiter);
@@ -219,18 +215,6 @@ app.get('/health', (req, res) => {
     status: 'OK',
     uptime: process.uptime(),
     timestamp: new Date().toISOString(),
-  });
-});
-
-app.get('/api/csrf-token', (req, res) => {
-  logger.info('CSRF token generated', {
-    ip: getClientIp(req),
-    forwardedFor: req.headers['x-forwarded-for'] || null,
-  });
-
-  res.json({
-    success: true,
-    csrfToken: req.csrfToken(),
   });
 });
 

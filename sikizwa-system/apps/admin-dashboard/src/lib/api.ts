@@ -8,6 +8,28 @@ const api = axios.create({
 const ACCESS_TOKEN_KEY = 'admin_access_token';
 const envToken = typeof import.meta.env.VITE_ADMIN_TOKEN === 'string' ? import.meta.env.VITE_ADMIN_TOKEN.trim() : '';
 
+// In-memory CSRF token (does not persist to storage)
+let csrfToken: string | null = null;
+
+/**
+ * Fetch CSRF token from the server at `/web/csrf-token`.
+ * Uses `fetch` with `credentials: 'include'` as required.
+ * Call this before making state-changing requests under `/web/*`.
+ */
+export async function fetchCsrfToken(fetchUrl?: string) {
+  const url = fetchUrl || '/web/csrf-token';
+  const res = await fetch(url, { credentials: 'include' });
+  if (!res.ok) throw new Error(`Failed to fetch CSRF token: ${res.status}`);
+  const body = await res.json();
+  // Expecting shape: { csrfToken: '...' } or { token: '...' }
+  csrfToken = (body && (body.csrfToken || body.token)) || null;
+  return csrfToken;
+}
+
+export function getCsrfToken() {
+  return csrfToken;
+}
+
 api.interceptors.request.use((config) => {
   const storedToken = window.localStorage.getItem(ACCESS_TOKEN_KEY)?.trim() || '';
   const token = envToken || storedToken;
@@ -15,6 +37,25 @@ api.interceptors.request.use((config) => {
   if (token) {
     config.headers = config.headers ?? {};
     config.headers.Authorization = `Bearer ${token}`;
+  }
+
+  // Ensure credentials are included on all requests
+  config.withCredentials = true;
+
+  // Attach CSRF token for state-changing requests under /web/*
+  try {
+    const method = (config.method || '').toLowerCase();
+    const isStateChanging = method === 'post' || method === 'put' || method === 'delete' || method === 'patch';
+    const urlPath = config.url || '';
+
+    const matchesWebPath = /^\/web(\/|$)/.test(urlPath) || (config.baseURL && new URL(urlPath, config.baseURL).pathname.startsWith('/web'));
+
+    if (isStateChanging && matchesWebPath && csrfToken) {
+      config.headers = config.headers ?? {};
+      config.headers['x-csrf-token'] = csrfToken;
+    }
+  } catch (e) {
+    // ignore URL parsing errors; don't break requests
   }
 
   return config;
