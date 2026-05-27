@@ -170,6 +170,12 @@ function errorHandler(err, req, res, next) {
       stack: err.stack,
       details: normalizedError.details,
       rawError: err,
+      // CSRF debug helpers
+      requestCookies: req.cookies || null,
+      requestHeaders: {
+        'x-csrf-token': req.headers['x-csrf-token'] || null,
+        cookie: req.headers.cookie || null,
+      },
     },
     'Request failed'
   );

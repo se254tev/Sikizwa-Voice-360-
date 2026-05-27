@@ -142,26 +142,36 @@ const authLimiter = rateLimit({
   },
 });
 
+// Configure CSRF protection using cookie strategy.
+// For production where frontend may be on a separate origin (CDN/Vercel), set SameSite to 'none'
+// so cookies will be sent with cross-site requests when `credentials: 'include'` is used.
 const csrfProtection = csurf({
   cookie: {
     httpOnly: true,
-    sameSite: 'strict',
+    sameSite: isProduction ? 'none' : 'lax',
     secure: isProduction,
   },
 });
 
+// Routes allowed to bypass CSRF checks. Normalize trailing slashes when comparing.
 const csrfExemptRoutes = new Set(['/api/admin/signup', '/api/admin/login']);
 
 app.use((req, res, next) => {
-  if (csrfExemptRoutes.has(req.path)) {
+  const normalizedPath = (req.path || '').replace(/\/+$/g, '') || '/';
+
+  // Skip CSRF for explicitly exempted routes.
+  if (csrfExemptRoutes.has(normalizedPath)) {
     logger.debug('CSRF protection skipped for route', {
       path: req.path,
+      normalizedPath,
       origin: req.get('origin') || req.get('referer') || null,
       hasAuthorization: Boolean(req.headers.authorization),
     });
     return next();
   }
 
+  // Attach CSRF protection for other routes. This will set the CSRF cookie
+  // on safe methods and validate tokens for unsafe methods.
   return csrfProtection(req, res, next);
 });
 
