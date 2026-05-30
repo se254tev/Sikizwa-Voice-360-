@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { adminSignup, saveAdminToken } from '../lib/api';
+import { adminSignup } from '../lib/api';
 
 function SignupPage() {
   const navigate = useNavigate();
@@ -38,8 +38,9 @@ function SignupPage() {
         confirmPassword,
       });
 
-      if (response && response.token) {
-        saveAdminToken(response.token);
+      // Token is now set in secure httpOnly cookie by backend
+      // No need to manually save it
+      if (response && response.success) {
         navigate('/');
       } else {
         setError('Unable to create admin account.');

@@ -16,7 +16,15 @@ const adminLoginLimiter = rateLimit({
   message: { success: false, message: 'Too many login attempts. Please try again later.' },
 });
 
-router.post('/signup', validate(adminSignupSchema), adminController.signup);
+const adminSignupLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { success: false, message: 'Too many signup attempts. Please try again later.' },
+});
+
+router.post('/signup', adminSignupLimiter, validate(adminSignupSchema), adminController.signup);
 router.post('/login', adminLoginLimiter, validate(adminLoginSchema), adminController.login);
 router.post('/logout', verifyAdminToken, requireAdminRole('admin'), adminController.logout);
 router.get('/profile', verifyAdminToken, requireAdminRole('admin'), adminController.profile);

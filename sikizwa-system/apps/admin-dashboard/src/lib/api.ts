@@ -5,7 +5,6 @@ const api = axios.create({
   withCredentials: true
 });
 
-const ACCESS_TOKEN_KEY = 'admin_access_token';
 const envToken = typeof import.meta.env.VITE_ADMIN_TOKEN === 'string' ? import.meta.env.VITE_ADMIN_TOKEN.trim() : '';
 
 // In-memory CSRF token (does not persist to storage)
@@ -31,15 +30,15 @@ export function getCsrfToken() {
 }
 
 api.interceptors.request.use((config) => {
-  const storedToken = window.localStorage.getItem(ACCESS_TOKEN_KEY)?.trim() || '';
-  const token = envToken || storedToken;
-
-  if (token) {
+  // Authorization via httpOnly cookie (set by backend during login/signup)
+  // Frontend does not need to manually add token to headers
+  // Only add Authorization header if VITE_ADMIN_TOKEN is set (for testing/env override)
+  if (envToken) {
     config.headers = config.headers ?? {};
-    config.headers.Authorization = `Bearer ${token}`;
+    config.headers.Authorization = `Bearer ${envToken}`;
   }
 
-  // Ensure credentials are included on all requests
+  // Ensure credentials are included on all requests (includes cookies)
   config.withCredentials = true;
 
   // Attach CSRF token for state-changing requests under /web/*
@@ -114,16 +113,4 @@ export async function adminLogout() {
 export async function fetchAdminProfile() {
   const res = await api.get('/admin/profile');
   return res.data;
-}
-
-export function saveAdminToken(token) {
-  window.localStorage.setItem(ACCESS_TOKEN_KEY, token);
-}
-
-export function clearAdminToken() {
-  window.localStorage.removeItem(ACCESS_TOKEN_KEY);
-}
-
-export function getAdminToken() {
-  return window.localStorage.getItem(ACCESS_TOKEN_KEY)?.trim() || '';
 }

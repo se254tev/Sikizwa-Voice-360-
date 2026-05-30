@@ -59,13 +59,17 @@ function isTokenRevoked(user, tokenIat) {
 }
 
 async function requireAuth(req, res, next) {
+  // Extract token from Authorization header or httpOnly cookie
+  let token = null;
+  
   const auth = req.headers.authorization;
-  if (!auth) {
-    logAuthFailure('TOKEN_MISSING', req);
-    return next(createAuthError({ message: AUTH_ERRORS.unauthorized.message, errorCode: 'AUTH_TOKEN_MISSING' }));
+  if (auth && auth.startsWith('Bearer ')) {
+    token = auth.split(' ')[1];
+  } else if (req.cookies && req.cookies.admin_token) {
+    // Fallback to cookie for admin routes
+    token = req.cookies.admin_token;
   }
 
-  const token = auth.split(' ')[1];
   if (!token) {
     logAuthFailure('TOKEN_MISSING', req);
     return next(createAuthError({ message: AUTH_ERRORS.unauthorized.message, errorCode: 'AUTH_TOKEN_MISSING' }));
@@ -88,8 +92,28 @@ async function requireAuth(req, res, next) {
       return next(createAuthError({ message: AUTH_ERRORS.invalidCredentials.message, errorCode: 'AUTH_USER_NOT_FOUND' }));
     }
 
+    if (user.isActive === false) {
+      logger.warn('Authentication failed - account suspended', {
+        reason: 'ACCOUNT_SUSPENDED',
+        method: req.method,
+        path: req.originalUrl,
+        ip: req.ip,
+        userId: payload.sub,
+        suspendedAt: user.suspendedAt,
+      });
+      return next(createAuthError({ statusCode: 403, message: AUTH_ERRORS.forbidden.message, errorCode: 'AUTH_ACCOUNT_SUSPENDED' }));
+    }
+
     if (isTokenRevoked(user, payload.iat)) {
-      logAuthFailure('TOKEN_REVOKED', req);
+      logger.warn('Authentication failed - token revoked', {
+        reason: 'TOKEN_REVOKED',
+        method: req.method,
+        path: req.originalUrl,
+        ip: req.ip,
+        userId: payload.sub,
+        tokenIssuedAt: new Date(payload.iat * 1000),
+        passwordChangedAt: user.passwordChangedAt,
+      });
       return next(createAuthError({ statusCode: 401, message: AUTH_ERRORS.invalidCredentials.message, errorCode: 'AUTH_TOKEN_REVOKED' }));
     }
 

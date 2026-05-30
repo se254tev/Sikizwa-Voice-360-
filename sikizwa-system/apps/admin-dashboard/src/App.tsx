@@ -7,7 +7,7 @@ import CounsellorsPage from './pages/Counsellors';
 import Sidebar from './components/Sidebar';
 import LoginPage from './pages/Login';
 import SignupPage from './pages/Signup';
-import { clearAdminToken, getAdminToken, adminLogout, fetchAdminProfile } from './lib/api';
+import { adminLogout, fetchAdminProfile } from './lib/api';
 
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -16,16 +16,12 @@ function App() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    const token = getAdminToken();
-    if (!token) {
-      setIsReady(true);
-      return;
-    }
-
+    // Check authentication by attempting to fetch admin profile
+    // Auth token is now stored in secure httpOnly cookie
+    // If cookie exists, fetch will succeed; otherwise it fails
     fetchAdminProfile()
       .then(() => setIsAuthenticated(true))
       .catch(() => {
-        clearAdminToken();
         setIsAuthenticated(false);
       })
       .finally(() => setIsReady(true));
@@ -35,7 +31,6 @@ function App() {
     try {
       await adminLogout();
     } finally {
-      clearAdminToken();
       setIsAuthenticated(false);
       navigate('/login');
     }
