@@ -5,6 +5,7 @@ FastAPI microservice for voice transcription, emotion detection, risk assessment
 ## Setup
 
 1. Copy `.env.example` to `.env` and fill `OPENAI_API_KEY`.
+   - Optionally configure `AI_CORS_ORIGINS` for allowed frontend origins.
 2. Create a Python environment and install requirements:
 
 ```bash

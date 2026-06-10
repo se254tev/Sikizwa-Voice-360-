@@ -21,12 +21,24 @@ app = FastAPI(
     version='0.2.0'
 )
 
+def parse_cors_origins():
+    default_origins = [
+        'https://sikizwa.com',
+        'https://app.sikizwa.com',
+        'http://localhost:3000',
+    ]
+    raw_origins = os.getenv('AI_CORS_ORIGINS', '').strip()
+    if raw_origins:
+        origins = [origin.strip() for origin in raw_origins.split(',') if origin.strip()]
+        return origins if origins else default_origins
+    return default_origins
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=['*'],
+    allow_origins=parse_cors_origins(),
     allow_credentials=True,
-    allow_methods=['*'],
-    allow_headers=['*'],
+    allow_methods=['GET', 'POST', 'OPTIONS'],
+    allow_headers=['Authorization', 'Content-Type', 'X-Requested-With', 'Accept'],
 )
 
 class TextPayload(BaseModel):

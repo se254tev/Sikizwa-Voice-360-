@@ -77,15 +77,6 @@ async function requireAuth(req, res, next) {
 
   try {
     const payload = jwt.verify(token, process.env.JWT_SECRET);
-
-    if (payload.deviceId) {
-      const device = await Device.findOne({ deviceId: payload.deviceId, userId: payload.sub, isActive: true });
-      if (!device) {
-        logAuthFailure('DEVICE_NOT_AUTHORIZED', req);
-        return next(createAuthError({ message: AUTH_ERRORS.unauthorized.message, errorCode: 'AUTH_DEVICE_NOT_AUTHORIZED' }));
-      }
-    }
-
     const user = await User.findById(payload.sub).select('-passwordHash');
     if (!user) {
       logAuthFailure('USER_NOT_FOUND', req);

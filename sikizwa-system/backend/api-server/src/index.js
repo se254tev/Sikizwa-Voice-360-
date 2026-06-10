@@ -56,6 +56,7 @@ function registerShutdownHandlers() {
 
 async function start() {
   try {
+    // This backend listens on plain HTTP because TLS termination is handled by the external nginx reverse proxy.
     server = http.createServer(app);
     initSocket(server);
 

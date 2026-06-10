@@ -23,6 +23,7 @@ class AppBottomNavigationBar extends StatelessWidget {
           selectedIndex: shell.currentIndex,
           onDestinationSelected: (index) => shell.goBranch(index),
           labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
+          height: 65,
           destinations: const [
             NavigationDestination(
               icon: Icon(Icons.home_outlined),

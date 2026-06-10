@@ -175,9 +175,9 @@ async function register(req, res, next) {
 
     await upsertDevice(device_id, normalizedType, user._id);
 
-    const access = signToken({ sub: user._id, role: user.role, deviceId: device_id || undefined }, process.env.JWT_SECRET);
+    const access = signToken({ sub: user._id, role: user.role }, process.env.JWT_SECRET);
     const refresh = signToken(
-      { sub: user._id, role: user.role, deviceId: device_id || undefined },
+      { sub: user._id, role: user.role },
       process.env.JWT_REFRESH_SECRET,
       '30d'
     );
@@ -232,9 +232,9 @@ async function login(req, res, next) {
 
     await upsertDevice(device_id, normalizedType, user._id);
 
-    const access = signToken({ sub: user._id, role: user.role, deviceId: device_id || undefined }, process.env.JWT_SECRET);
+    const access = signToken({ sub: user._id, role: user.role }, process.env.JWT_SECRET);
     const refresh = signToken(
-      { sub: user._id, role: user.role, deviceId: device_id || undefined },
+      { sub: user._id, role: user.role },
       process.env.JWT_REFRESH_SECRET,
       '30d'
     );
@@ -436,7 +436,7 @@ async function refreshToken(req, res, next) {
     }
 
     const access = signToken(
-      { sub: payload.sub, role: payload.role, deviceId: payload.deviceId },
+      { sub: payload.sub, role: payload.role },
       process.env.JWT_SECRET
     );
 

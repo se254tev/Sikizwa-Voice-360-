@@ -147,8 +147,8 @@ async function linkDevice(req, res, next) {
       { upsert: true, new: true }
     );
 
-    const access = signToken({ sub: user._id, role: user.role, deviceId }, process.env.JWT_SECRET);
-    const refresh = signToken({ sub: user._id, deviceId }, process.env.JWT_REFRESH_SECRET, '30d');
+    const access = signToken({ sub: user._id, role: user.role }, process.env.JWT_SECRET);
+    const refresh = signToken({ sub: user._id }, process.env.JWT_REFRESH_SECRET, '30d');
 
     return res.json({
       access,

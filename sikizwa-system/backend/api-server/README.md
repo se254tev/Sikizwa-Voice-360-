@@ -31,4 +31,7 @@ Deploy to Render: `render.yaml` is included. Ensure the environment variables in
 Security and production notes:
 - Use HTTPS at the edge (Render provides TLS).
 - Keep JWT secrets safe and rotate periodically.
+- Configure `CORS_ORIGINS` explicitly instead of allowing wildcard origins.
+- Use `SESSION_COOKIE_SECURE=true` in production and keep `SESSION_SECRET` private.
+- `SESSION_COOKIE_MAX_AGE` controls browser session duration in milliseconds.
 - Use signed Cloudinary uploads for sensitive media.

@@ -40,22 +40,20 @@ const app = express();
 // Trust the ingress proxy so req.ip reflects the real client address.
 app.set('trust proxy', 1);
 
-const allowedOrigins = [
-  'https://sikizwa-voice-360.vercel.app',
+const defaultCorsOrigins = [
+  'https://sikizwa.com',
+  'https://app.sikizwa.com',
   'http://localhost:3000',
-  'http://localhost:5173',
-  'http://127.0.0.1:5173',
-  'http://localhost:8080',
 ];
 
 const extraOrigins = typeof process.env.CORS_ORIGINS === 'string'
   ? process.env.CORS_ORIGINS.split(',').map((origin) => origin.trim()).filter(Boolean)
   : [];
 
-const corsOrigins = Array.from(new Set([...allowedOrigins, ...extraOrigins]));
+const corsOrigins = Array.from(new Set([...defaultCorsOrigins, ...extraOrigins]));
 
 const corsOptions = {
-  origin: function (origin, callback) {
+  origin(origin, callback) {
     if (!origin || corsOrigins.includes(origin)) {
       callback(null, true);
       return;
@@ -67,7 +65,23 @@ const corsOptions = {
   optionsSuccessStatus: 200,
 };
 
-app.use(helmet());
+app.use(
+  helmet({
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        scriptSrc: ["'self'", "'unsafe-inline'", 'https:'],
+        styleSrc: ["'self'", "'unsafe-inline'"],
+        imgSrc: ["'self'", 'data:'],
+        connectSrc: ["'self'", 'https:'],
+        objectSrc: ["'none'"],
+        baseUri: ["'self'"],
+        formAction: ["'self'"],
+      },
+    },
+    referrerPolicy: { policy: 'same-origin' },
+  })
+);
 app.use(cors(corsOptions));
 app.options('*', cors(corsOptions));
 // Parse JSON first, then URL-encoded bodies, then cookies
@@ -157,6 +171,11 @@ const authLimiter = rateLimit({
 // Web router (stateful): session + csurf for browser-based UI
 const webRouter = express.Router();
 
+const sessionCookieSecure = typeof process.env.SESSION_COOKIE_SECURE === 'string'
+  ? process.env.SESSION_COOKIE_SECURE === 'true'
+  : isProduction;
+const sessionCookieMaxAge = Number(process.env.SESSION_COOKIE_MAX_AGE) || 24 * 60 * 60 * 1000;
+
 const sessionConfig = {
   name: process.env.SESSION_NAME || 'sikizwa_session',
   secret: process.env.SESSION_SECRET || 'dev-secret-change-me',
@@ -165,9 +184,10 @@ const sessionConfig = {
   proxy: true,
   cookie: {
     httpOnly: true,
-    secure: isProduction,
-    sameSite: isProduction ? 'none' : 'lax',
-    maxAge: 24 * 60 * 60 * 1000,
+    secure: sessionCookieSecure,
+    sameSite: 'strict',
+    maxAge: sessionCookieMaxAge,
+    path: '/',
   },
 };
 
