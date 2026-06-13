@@ -26,6 +26,8 @@ def parse_cors_origins():
         'https://sikizwa.com',
         'https://app.sikizwa.com',
         'http://localhost:3000',
+        'http://197.139.6.117',
+        'https://197.139.6.117',
     ]
     raw_origins = os.getenv('AI_CORS_ORIGINS', '').strip()
     if raw_origins:

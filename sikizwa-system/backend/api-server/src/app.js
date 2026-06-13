@@ -44,6 +44,8 @@ const defaultCorsOrigins = [
   'https://sikizwa.com',
   'https://app.sikizwa.com',
   'http://localhost:3000',
+  'http://197.139.6.117',
+  'https://197.139.6.117',
 ];
 
 const extraOrigins = typeof process.env.CORS_ORIGINS === 'string'
@@ -54,7 +56,22 @@ const corsOrigins = Array.from(new Set([...defaultCorsOrigins, ...extraOrigins])
 
 const corsOptions = {
   origin(origin, callback) {
-    if (!origin || corsOrigins.includes(origin)) {
+    if (!origin) {
+      callback(null, true);
+      return;
+    }
+
+    if (corsOrigins.includes(origin)) {
+      callback(null, true);
+      return;
+    }
+
+    // Allow localhost on any port (dev) and the production IP with optional port
+    const localhostRegex = /^https?:\/\/localhost(:\d+)?$/;
+    const loopbackRegex = /^https?:\/\/127\.0\.0\.1(:\d+)?$/;
+    const prodIpRegex = /^https?:\/\/197\.139\.6\.117(:\d+)?$/;
+
+    if (localhostRegex.test(origin) || loopbackRegex.test(origin) || prodIpRegex.test(origin)) {
       callback(null, true);
       return;
     }

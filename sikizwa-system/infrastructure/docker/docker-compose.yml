@@ -6,64 +6,124 @@ services:
     security_opt:
       - no-new-privileges:true
     volumes:
-      - mongo-data:/data/db
-    ports:
-      - "27017:27017"
+      - mongo-data:/data/db:rw
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_INITDB_ROOT_USERNAME:-sikizwa}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD:-change_me}
+    healthcheck:
+      test: ["CMD-SHELL","mongosh --quiet --eval \"db.adminCommand({ ping: 1 })\" || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - sikizwa_net
 
   redis:
     image: redis:7
     restart: unless-stopped
     security_opt:
       - no-new-privileges:true
-    ports:
-      - "6379:6379"
+    command: ["redis-server","--save","60","1","--appendonly","no","--requirepass","${REDIS_PASSWORD:-change_me}"]
+    healthcheck:
+      test: ["CMD-SHELL","redis-cli -a ${REDIS_PASSWORD:-change_me} PING | grep -q PONG || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    networks:
+      - sikizwa_net
 
   backend:
-    build: ./backend/api-server
+    build: ../../backend/api-server
     env_file:
-      - ./backend/api-server/.env
+      - ../../backend/api-server/.env.prod
     environment:
       - AI_SERVICE_URL=http://ai:8000
-    ports:
-      - "4000:4000"
+      - NODE_ENV=production
+    expose:
+      - "4000"
     depends_on:
-      - mongo
-      - redis
+      mongo:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
     security_opt:
       - no-new-privileges:true
     read_only: true
     tmpfs:
       - /tmp
+    healthcheck:
+      test: ["CMD-SHELL","curl -fS http://localhost:4000/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    networks:
+      - sikizwa_net
 
   ai:
-    build: ./apps/ai-service
+    build: ../../apps/ai-service
     env_file:
-      - ./apps/ai-service/.env
+      - ../../apps/ai-service/.env.prod
     environment:
       - WORKERS=2
-    ports:
-      - "8000:8000"
+      - NODE_ENV=production
+    expose:
+      - "8000"
     depends_on:
-      - redis
-      - mongo
+      redis:
+        condition: service_healthy
+      mongo:
+        condition: service_healthy
+    restart: unless-stopped
     security_opt:
       - no-new-privileges:true
     read_only: true
     tmpfs:
       - /tmp
+    healthcheck:
+      test: ["CMD-SHELL","curl -fS http://localhost:8000/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    networks:
+      - sikizwa_net
 
   nginx:
     image: nginx:stable
+    restart: unless-stopped
     security_opt:
       - no-new-privileges:true
     volumes:
-      - ./infrastructure/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ../nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ../nginx/certs:/etc/letsencrypt:ro
     ports:
       - "80:80"
       - "443:443"
     depends_on:
       - backend
       - ai
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    networks:
+      - sikizwa_net
 
 volumes:
   mongo-data:
+
+networks:
+  sikizwa_net:
+    driver: bridge
