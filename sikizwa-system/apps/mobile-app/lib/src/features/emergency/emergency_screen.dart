@@ -193,8 +193,8 @@ class _EmergencyScreenState extends ConsumerState<EmergencyScreen> with SingleTi
                         ),
                         const SizedBox(height: 12),
                         OutlinedButton(
-                          onPressed: _isSending ? null : () => _callEmergencyNumber('999', '999'),
-                          child: const Text('Call 999'),
+                          onPressed: _isSending ? null : () => _callEmergencyNumber('+254797235534', '+254797235534'),
+                          child: const Text('Call +254797235534'),
                         ),
                         const SizedBox(height: 12),
                         OutlinedButton(
