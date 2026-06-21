@@ -268,6 +268,15 @@ app.get('/health', (req, res) => {
   });
 });
 
+// Root friendly health/info endpoint for probes and browsers
+app.get('/', (req, res) => {
+  res.json({
+    success: true,
+    service: 'sikizwa-api',
+    status: 'OK',
+  });
+});
+
 app.use((req, res, next) => {
   next(
     new ApiError({

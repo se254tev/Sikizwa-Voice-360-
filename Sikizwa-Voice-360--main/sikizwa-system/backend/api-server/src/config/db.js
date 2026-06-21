@@ -19,6 +19,10 @@ function isIgnorableIndexError(err) {
 }
 
 async function synchronizeIndexes() {
+  if (process.env.DISABLE_SYNC_INDEXES === 'true') {
+    logger.warn('DISABLE_SYNC_INDEXES=true, skipping index synchronization');
+    return false;
+  }
   try {
     await User.syncIndexes();
     logger.info('Indexes synchronized successfully');
