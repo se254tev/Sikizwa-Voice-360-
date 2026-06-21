@@ -83,8 +83,20 @@ userSchema.index(
     }
   }
 );
-userSchema.index({ email: 1 }, { unique: true });
-userSchema.index({ nationalId: 1 }, { unique: true });
+userSchema.index(
+  { email: 1 },
+  {
+    unique: true,
+    partialFilterExpression: { email: { $type: 'string' } }
+  }
+);
+userSchema.index(
+  { nationalId: 1 },
+  {
+    unique: true,
+    partialFilterExpression: { nationalId: { $type: 'string' } }
+  }
+);
 userSchema.index({ 'metadata.trustedPendants.pendantId': 1 }, { sparse: true });
 userSchema.index({ role: 1 });
 
