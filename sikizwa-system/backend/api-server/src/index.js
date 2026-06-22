@@ -85,6 +85,13 @@ async function start() {
     }
 
     await connectDB(process.env.MONGO_ATLAS_URI || process.env.MONGO_URI);
+    // Attempt to seed admin user if missing
+    try {
+      const { seedAdmin } = require('./utils/seedAdmin');
+      await seedAdmin();
+    } catch (err) {
+      logger.error('Failed to run admin seed:', err);
+    }
   } catch (err) {
     logger.error('Failed to start server:', err);
     process.exit(1);

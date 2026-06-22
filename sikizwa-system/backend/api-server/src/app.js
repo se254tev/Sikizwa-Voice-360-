@@ -40,47 +40,58 @@ const app = express();
 // Trust the ingress proxy so req.ip reflects the real client address.
 app.set('trust proxy', 1);
 
-const defaultCorsOrigins = [
-  'https://sikizwa.com',
-  'https://app.sikizwa.com',
-  'http://localhost:3000',
-  'http://197.139.6.117',
-  'https://197.139.6.117',
-];
+// Build allowedOrigins strictly from process.env.CORS_ORIGINS (source of truth)
+const allowedOrigins = (process.env.CORS_ORIGINS || '')
+  .split(',')
+  .map((o) => o.trim())
+  .filter(Boolean);
 
-const extraOrigins = typeof process.env.CORS_ORIGINS === 'string'
-  ? process.env.CORS_ORIGINS.split(',').map((origin) => origin.trim()).filter(Boolean)
-  : [];
+const permissiveMode = allowedOrigins.length === 0;
+if (permissiveMode) {
+  logger.warn('CORS WARNING: running in permissive mode (CORS_ORIGINS is empty)');
+} else {
+  logger.info('CORS allowed origins', { allowedOrigins });
+}
 
-const corsOrigins = Array.from(new Set([...defaultCorsOrigins, ...extraOrigins]));
+// Custom CORS middleware to satisfy strict ordering, permissive fallback, and OPTIONS handling
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
+  logger.info('CORS origin check', { origin, method: req.method });
 
-const corsOptions = {
-  origin(origin, callback) {
-    if (!origin) {
-      callback(null, true);
-      return;
-    }
+  // If no origin header -> allow (mobile apps, Postman, server-to-server)
+  if (!origin) {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
+  } else if (origin === 'null') {
+    // literal 'null' origins (file:// or some webviews) -> allow
+    res.setHeader('Access-Control-Allow-Origin', 'null');
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
+  } else if (permissiveMode) {
+    // permissive mode: allow all origins
+    res.setHeader('Access-Control-Allow-Origin', origin);
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
+  } else if (allowedOrigins.includes(origin)) {
+    // origin explicitly allowed
+    res.setHeader('Access-Control-Allow-Origin', origin);
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
+  } else {
+    // origin not recognized: per policy, do NOT hard-block auth endpoints; allow but log warning
+    logger.warn('CORS unrecognized origin - permitting for availability', { origin });
+    res.setHeader('Access-Control-Allow-Origin', origin);
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
+  }
 
-    if (corsOrigins.includes(origin)) {
-      callback(null, true);
-      return;
-    }
+  // Common CORS response headers
+  res.setHeader('Access-Control-Allow-Methods', 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', req.headers['access-control-request-headers'] || 'Content-Type,Authorization');
 
-    // Allow localhost on any port (dev) and the production IP with optional port
-    const localhostRegex = /^https?:\/\/localhost(:\d+)?$/;
-    const loopbackRegex = /^https?:\/\/127\.0\.0\.1(:\d+)?$/;
-    const prodIpRegex = /^https?:\/\/197\.139\.6\.117(:\d+)?$/;
+  // If preflight, respond immediately with 204
+  if (req.method === 'OPTIONS') {
+    return res.status(204).end();
+  }
 
-    if (localhostRegex.test(origin) || loopbackRegex.test(origin) || prodIpRegex.test(origin)) {
-      callback(null, true);
-      return;
-    }
-
-    callback(new Error('Not allowed by CORS'));
-  },
-  credentials: true,
-  optionsSuccessStatus: 200,
-};
+  next();
+});
 
 app.use(
   helmet({
@@ -99,8 +110,7 @@ app.use(
     referrerPolicy: { policy: 'same-origin' },
   })
 );
-app.use(cors(corsOptions));
-app.options('*', cors(corsOptions));
+// Note: custom CORS middleware above handles preflight and origin checks
 // Parse JSON first, then URL-encoded bodies, then cookies
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
@@ -266,6 +276,12 @@ app.get('/health', (req, res) => {
     uptime: process.uptime(),
     timestamp: new Date().toISOString(),
   });
+});
+
+// Root route - useful for simple GET / checks by load balancers and platforms
+// that expect a 200 at the base path. Returns a lightweight status object.
+app.get('/', (req, res) => {
+  res.json({ success: true, service: 'sikizwa-api', status: 'OK' });
 });
 
 app.use((req, res, next) => {

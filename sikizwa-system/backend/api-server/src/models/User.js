@@ -74,9 +74,31 @@ const userSchema = new Schema(
 
 userSchema.index({ anonymousId: 1 }, { unique: true, sparse: true });
 userSchema.index({ phone: 1 }, { unique: true, sparse: true });
-userSchema.index({ phoneNumber: 1 }, { unique: true });
-userSchema.index({ email: 1 }, { unique: true });
-userSchema.index({ nationalId: 1 }, { unique: true });
+// Use partial indexes so documents without a meaningful string value
+// for these fields are not included in the unique index. This avoids
+// duplicate-key errors for existing records that store `null` or
+// non-string placeholders in those fields.
+userSchema.index(
+  { phoneNumber: 1 },
+  {
+    unique: true,
+    partialFilterExpression: { phoneNumber: { $type: 'string' } },
+  }
+);
+userSchema.index(
+  { email: 1 },
+  {
+    unique: true,
+    partialFilterExpression: { email: { $type: 'string' } },
+  }
+);
+userSchema.index(
+  { nationalId: 1 },
+  {
+    unique: true,
+    partialFilterExpression: { nationalId: { $type: 'string' } },
+  }
+);
 userSchema.index({ 'metadata.trustedPendants.pendantId': 1 }, { sparse: true });
 userSchema.index({ role: 1 });
 
