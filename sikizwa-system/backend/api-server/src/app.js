@@ -1,6 +1,6 @@
 const express = require('express');
 const helmet = require('helmet');
-const cors = require('cors');
+// CORS handled by custom middleware below (do not use cors() here)
 const cookieParser = require('cookie-parser');
 const morgan = require('morgan');
 const rateLimit = require('express-rate-limit');
@@ -40,34 +40,30 @@ const app = express();
 // Trust the ingress proxy so req.ip reflects the real client address.
 app.set('trust proxy', 1);
 
-// Build allowedOrigins strictly from process.env.CORS_ORIGINS (source of truth)
+// Unified CORS middleware (env-driven)
 const allowedOrigins = (process.env.CORS_ORIGINS || '')
   .split(',')
   .map((o) => o.trim())
   .filter(Boolean);
 
-const permissiveMode = allowedOrigins.length === 0;
-if (permissiveMode) {
-  logger.warn('CORS WARNING: running in permissive mode (CORS_ORIGINS is empty)');
+const openMode = allowedOrigins.length === 0;
+if (openMode) {
+  logger.warn('CORS running in open mode');
 } else {
   logger.info('CORS allowed origins', { allowedOrigins });
 }
 
-// Custom CORS middleware to satisfy strict ordering, permissive fallback, and OPTIONS handling
+// Must run before other middleware (helmet, routes, auth)
 app.use((req, res, next) => {
   const origin = req.headers.origin;
   logger.info('CORS origin check', { origin, method: req.method });
 
-  // If no origin header -> allow (mobile apps, Postman, server-to-server)
-  if (!origin) {
-    res.setHeader('Access-Control-Allow-Origin', '*');
+  // Always allow requests with no Origin (mobile/Postman/server-to-server)
+  if (!origin || origin === 'null') {
+    res.setHeader('Access-Control-Allow-Origin', origin || '*');
     res.setHeader('Access-Control-Allow-Credentials', 'true');
-  } else if (origin === 'null') {
-    // literal 'null' origins (file:// or some webviews) -> allow
-    res.setHeader('Access-Control-Allow-Origin', 'null');
-    res.setHeader('Access-Control-Allow-Credentials', 'true');
-  } else if (permissiveMode) {
-    // permissive mode: allow all origins
+  } else if (openMode) {
+    // permissive: allow all origins
     res.setHeader('Access-Control-Allow-Origin', origin);
     res.setHeader('Access-Control-Allow-Credentials', 'true');
   } else if (allowedOrigins.includes(origin)) {
@@ -75,17 +71,15 @@ app.use((req, res, next) => {
     res.setHeader('Access-Control-Allow-Origin', origin);
     res.setHeader('Access-Control-Allow-Credentials', 'true');
   } else {
-    // origin not recognized: per policy, do NOT hard-block auth endpoints; allow but log warning
-    logger.warn('CORS unrecognized origin - permitting for availability', { origin });
+    // unknown origin: log warning but do not block
+    logger.warn('CORS unknown origin (permitted)', { origin });
     res.setHeader('Access-Control-Allow-Origin', origin);
     res.setHeader('Access-Control-Allow-Credentials', 'true');
   }
 
-  // Common CORS response headers
   res.setHeader('Access-Control-Allow-Methods', 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', req.headers['access-control-request-headers'] || 'Content-Type,Authorization');
 
-  // If preflight, respond immediately with 204
   if (req.method === 'OPTIONS') {
     return res.status(204).end();
   }

@@ -1,6 +1,5 @@
 const express = require('express');
 const helmet = require('helmet');
-const cors = require('cors');
 const cookieParser = require('cookie-parser');
 const morgan = require('morgan');
 const rateLimit = require('express-rate-limit');
@@ -76,7 +75,10 @@ const corsOptions = {
       return;
     }
 
-    callback(new Error('Not allowed by CORS'));
+    // Previously this threw an error which caused a hard CORS rejection.
+    // For availability of auth endpoints we log and allow instead.
+    logger.warn('CORS origin not recognized, permitting for availability', { origin });
+    callback(null, true);
   },
   credentials: true,
   optionsSuccessStatus: 200,
@@ -99,8 +101,7 @@ app.use(
     referrerPolicy: { policy: 'same-origin' },
   })
 );
-app.use(cors(corsOptions));
-app.options('*', cors(corsOptions));
+// CORS handled centrally; do not use cors() middleware here to avoid duplicates
 // Parse JSON first, then URL-encoded bodies, then cookies
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
